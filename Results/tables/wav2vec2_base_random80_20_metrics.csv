@@ -1,0 +1,2 @@
+split,accuracy,balanced_accuracy,macro_f1
+random_80_20,1.0,1.0,1.0

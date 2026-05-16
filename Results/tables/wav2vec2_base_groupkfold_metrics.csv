@@ -1,0 +1,3 @@
+split,accuracy,balanced_accuracy,macro_f1
+groupkfold_speaker_fold1,0.6478571428571429,0.6478571428571429,0.6444150388444827
+groupkfold_speaker_fold2,0.61,0.61,0.5339656773441773

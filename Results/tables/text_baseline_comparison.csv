@@ -1,0 +1,6 @@
+model,accuracy
+dummy_most_frequent,0.14285714285714285
+dummy_stratified,0.15357142857142858
+tfidf_logistic_regression,0.0
+tfidf_naive_bayes,0.0
+tfidf_linear_svm,0.0

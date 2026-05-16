@@ -1,0 +1,4 @@
+representation,samples
+speech_mfcc_pca,700
+text_tfidf_svd,700
+fusion_pca,700

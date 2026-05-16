@@ -1,0 +1,3 @@
+train_speaker,test_speaker,accuracy
+OAF,YAF,0.480714
+YAF,OAF,0.509286

@@ -1,0 +1,4 @@
+pooling,accuracy
+mean_plus_std,0.8489285714285715
+mean_only,0.8435714285714286
+std_only,0.7978571428571428

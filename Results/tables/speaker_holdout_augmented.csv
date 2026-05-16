@@ -1,0 +1,3 @@
+train_speaker,test_speaker,model,feature_set,augmentation,accuracy
+OAF,YAF,linear_svm,enhanced,noise_gain_pitch_shift_time_stretch,0.5771428571428572
+YAF,OAF,linear_svm,enhanced,noise_gain_pitch_shift_time_stretch,0.5864285714285714

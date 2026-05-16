@@ -1,0 +1,14 @@
+librosa==0.10.2.post1
+matplotlib==3.8.4
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.4.2
+scipy==1.13.0
+seaborn==0.13.2
+soundfile==0.12.1
+joblib==1.4.2
+torch
+transformers
+torchaudio
+funasr
+modelscope

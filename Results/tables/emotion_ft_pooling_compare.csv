@@ -1,0 +1,7 @@
+pooling,train_speaker,test_speaker,accuracy
+mean_only,OAF,YAF,0.8564285714285714
+std_only,OAF,YAF,0.8164285714285714
+mean_plus_std,OAF,YAF,0.8571428571428571
+mean_only,YAF,OAF,0.8307142857142857
+std_only,YAF,OAF,0.7792857142857142
+mean_plus_std,YAF,OAF,0.8407142857142857

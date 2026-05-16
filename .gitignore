@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+data/
+Results/checkpoints/
+Results/matplotlib_cache/
+Results/embedding_cache/
+
+.env
+.DS_Store
+Thumbs.db

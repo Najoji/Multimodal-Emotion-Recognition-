@@ -1,0 +1,4 @@
+experiment,average_accuracy,notes
+original_logistic_mfcc,0.495000,Original speaker-holdout baseline averaged across OAF->YAF and YAF->OAF
+best_simple_sweep_linear_svm_mfcc_prosody,0.539286,Best result from classical model sweep without augmentation
+enhanced_augmented_linear_svm,0.581786,Enhanced features plus noise/gain/pitch-shift/time-stretch augmentation

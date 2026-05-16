@@ -1,0 +1,7 @@
+feature_mode,train_speaker,test_speaker,accuracy
+embedding_only,OAF,YAF,0.8571428571428571
+embedding_only,YAF,OAF,0.8407142857142857
+handcrafted_only,OAF,YAF,0.5585714285714286
+handcrafted_only,YAF,OAF,0.56
+embedding_plus_handcrafted,OAF,YAF,0.8385714285714285
+embedding_plus_handcrafted,YAF,OAF,0.7635714285714286

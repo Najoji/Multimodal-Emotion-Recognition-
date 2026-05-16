@@ -1,0 +1,3 @@
+train_speaker,test_speaker,model_name,classifier,accuracy
+OAF,YAF,ensemble_wav2vec2,Voting (SVM+LR+RF),0.6321428571428571
+YAF,OAF,ensemble_wav2vec2,Voting (SVM+LR+RF),0.5757142857142857
