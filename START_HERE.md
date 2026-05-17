@@ -1,5 +1,11 @@
 # Start Here
 
+If you are reviewing the finished submission rather than rebuilding it, begin with:
+
+```text
+REVIEWER_GUIDE.md
+```
+
 ## What This Project Is
 
 You are building an emotion classifier. Given an audio sample, its text, or both, the system predicts the speaker's emotion.

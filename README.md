@@ -1,5 +1,11 @@
 # Multimodal Emotion Recognition
 
+For a reviewer-friendly entry point, start with:
+
+```text
+REVIEWER_GUIDE.md
+```
+
 This project predicts emotion from the Toronto Emotional Speech Set (TESS) using:
 
 1. Speech-only input
@@ -113,3 +119,9 @@ The scripts save outputs under:
 - `Results/plots/`
 
 Important plots include confusion matrices, the model comparison bar chart, and 2D representation plots for speech, text, and fusion.
+
+For a plain-English explanation of the final tables and figures, see:
+
+- `Results/tables/README.md`
+- `Results/plots/README.md`
+- `Results/FINAL_PROJECT_REPORT.md`
