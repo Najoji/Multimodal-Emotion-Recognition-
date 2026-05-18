@@ -1,0 +1,9 @@
+transform,l2_normalize,accuracy
+separate_zscore,True,0.6671428571428571
+separate_centering,True,0.6667857142857143
+separate_zscore,False,0.6557142857142857
+separate_centering,False,0.6521428571428571
+baseline,True,0.6375
+baseline,False,0.6289285714285715
+coral_source_to_target,True,0.6110714285714285
+coral_source_to_target,False,0.5125

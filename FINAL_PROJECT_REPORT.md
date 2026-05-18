@@ -21,6 +21,16 @@ Emotion-finetuned Wav2Vec2:84.89%
 Emotion2Vec+ champion:     99.86%
 ```
 
+For historical context, the original random-split baselines were:
+
+| Early baseline | Random-split accuracy |
+| --- | ---: |
+| Speech-only MFCC | 99.82% |
+| Text-only TF-IDF | 0.00% |
+| Fusion MFCC + TF-IDF | 99.82% |
+
+These early results are useful because they explain why speaker holdout became necessary.
+
 ### Executive Summary
 
 The project began with the simple interpretation of the task: build one speech model, one text model, one fusion model, and compare their accuracies. During development, a much more important issue emerged. A random split produced almost perfect speech accuracy, but this was misleading because both TESS speakers were present in both the training and test sets. Once a stricter speaker-holdout evaluation was introduced, the initial MFCC model fell to roughly `49%`, revealing that the harder and more meaningful problem was **generalization to an unseen speaker**.
@@ -36,7 +46,7 @@ That progression led to the final conclusion of the project: **the quality of th
 
 ### Final Visual Summary
 
-![Speech Evolution](plots/speech_model_evolution.png)
+![Speech Evolution](Results/plots/speech_model_evolution.png)
 
 *Figure 1. The central result of the project: speech representations become progressively more separable from MFCCs to Emotion2Vec+.*
 
@@ -106,7 +116,15 @@ This is stricter than random splitting because the test speaker is never seen du
 
 ### Why Speaker Holdout Became Necessary
 
-The project first produced a speech-only random-split result above `99%`. That result looked impressive, but it was not the right answer to trust. In a random split, recordings from both TESS speakers appear in both training and testing, so the model can quietly exploit speaker-specific patterns that do not generalize.
+The project first produced these random-split baseline results:
+
+| Early baseline | Random-split accuracy |
+| --- | ---: |
+| Speech-only MFCC | 99.82% |
+| Text-only TF-IDF | 0.00% |
+| Fusion MFCC + TF-IDF | 99.82% |
+
+The speech and fusion results looked impressive, but they were not the right answers to trust. In a random split, recordings from both TESS speakers appear in both training and testing, so the model can quietly exploit speaker-specific patterns that do not generalize.
 
 Speaker holdout forces a more realistic test:
 
@@ -147,22 +165,22 @@ The emotion-finetuned representation produced the first major leap, reaching `84
 
 ### Speech Model Progression
 
-| Stage | Representation | Main setup | Average speaker-holdout accuracy |
-| --- | --- | --- | ---: |
-| 1 | MFCC baseline | MFCC statistics + Logistic Regression | 49.50% |
-| 2 | Generic Wav2Vec2 | Wav2Vec2-base + unsupervised speaker adaptation | 66.71% |
-| 3 | Emotion-finetuned Wav2Vec2 | emotion-finetuned embedding + Linear SVM | 84.89% |
-| 4 | Emotion2Vec+ champion | Emotion2Vec+ base + L2 normalization + Linear SVM | 99.86% |
+| Stage | Representation | Main setup | Historical random-split accuracy | Average speaker-holdout accuracy |
+| --- | --- | --- | ---: | ---: |
+| 1 | MFCC baseline | MFCC statistics + Logistic Regression | 99.82% | 49.50% |
+| 2 | Generic Wav2Vec2 | Wav2Vec2-base + unsupervised speaker adaptation | Not used as the main metric | 66.71% |
+| 3 | Emotion-finetuned Wav2Vec2 | emotion-finetuned embedding + Linear SVM | Not used as the main metric | 84.89% |
+| 4 | Emotion2Vec+ champion | Emotion2Vec+ base + L2 normalization + Linear SVM | Not used as the main metric | 99.86% |
 
 ### Final Modality Comparison
 
-| Model | Average speaker-holdout accuracy |
-| --- | ---: |
-| Speech-only champion | 99.86% |
-| Text-only | 14.29% |
-| Fusion | 99.86% |
+| Model | Historical random-split baseline | Final speaker-holdout accuracy |
+| --- | ---: | ---: |
+| Speech | 99.82% | 99.86% |
+| Text | 0.00% | 14.29% |
+| Fusion | 99.82% | 99.86% |
 
-The text branch remains weak because the same isolated words appear across all emotion classes. Fusion matches speech-only because the text features add almost no extra discriminative information on TESS.
+The random-split and speaker-holdout columns should not be read as the same experiment. The random-split column records the original early baselines, while the speaker-holdout column records the final honest comparison. The text branch remains weak because the same isolated words appear across all emotion classes. Fusion matches speech-only because the text features add almost no extra discriminative information on TESS.
 
 ### Additional Experiment Outcomes
 
@@ -184,16 +202,16 @@ Several side experiments were also useful even though they did not become the fi
 
 ### Clean Master Results Table
 
-| Family | Model / method | Average speaker-holdout accuracy | Interpretation |
-| --- | --- | ---: | --- |
-| Classical speech | MFCC + Logistic Regression | 49.50% | Honest baseline, weak unseen-speaker generalization |
-| Classical speech | Enhanced handcrafted features + augmentation | 58.18% | Helpful, but still limited |
-| Generic pretrained speech | Wav2Vec2-base | 62.90% | Learned speech features beat handcrafted features |
-| Generic pretrained speech | Wav2Vec2-base + adaptation | 66.71% | Speaker shift can be reduced, not fully solved |
-| Emotion-specialized speech | Emotion-finetuned Wav2Vec2 | 84.89% | Task-specific representations matter greatly |
-| Emotion-specialized speech | Emotion2Vec+ base | 99.86% | Best model on TESS speaker holdout |
-| Text only | TF-IDF + Logistic Regression | 14.29% | Near chance because transcripts lack emotional content |
-| Fusion | Emotion2Vec+ + TF-IDF | 99.86% | No measurable gain over speech alone |
+| Family | Model / method | Historical random-split accuracy | Average speaker-holdout accuracy | Interpretation |
+| --- | --- | ---: | ---: | --- |
+| Classical speech | MFCC + Logistic Regression | 99.82% | 49.50% | Random split looked excellent, holdout exposed weak unseen-speaker generalization |
+| Classical speech | Enhanced handcrafted features + augmentation | Not used as the main metric | 58.18% | Helpful, but still limited |
+| Generic pretrained speech | Wav2Vec2-base | Not used as the main metric | 62.90% | Learned speech features beat handcrafted features |
+| Generic pretrained speech | Wav2Vec2-base + adaptation | Not used as the main metric | 66.71% | Speaker shift can be reduced, not fully solved |
+| Emotion-specialized speech | Emotion-finetuned Wav2Vec2 | Not used as the main metric | 84.89% | Task-specific representations matter greatly |
+| Emotion-specialized speech | Emotion2Vec+ base | Not used as the main metric | 99.86% | Best model on TESS speaker holdout |
+| Text only | TF-IDF + Logistic Regression | 0.00% | 14.29% | Near chance because transcripts lack emotional content |
+| Fusion | MFCC + TF-IDF baseline / Emotion2Vec+ + TF-IDF final | 99.82% | 99.86% | Text adds no measurable value on TESS |
 
 ## C. Analysis
 
@@ -228,25 +246,25 @@ Even though only four final mistakes remain, retaining them in the report is use
 
 #### Speech Representation Evolution
 
-![Speech Evolution](plots/speech_model_evolution.png)
+![Speech Evolution](Results/plots/speech_model_evolution.png)
 
 *Figure 2. Evolution of the speech representation space from handcrafted MFCCs to Emotion2Vec+ embeddings.*
 
 #### Final Temporal Modelling Representation
 
-![Final Speech Representation](plots/speech_representation_pca.png)
+![Final Speech Representation](Results/plots/speech_representation_pca.png)
 
 *Figure 3. Final speech representation from the temporal modelling block.*
 
 #### Contextual Modelling Representation
 
-![Text Overlap](plots/text_representation_svd.png)
+![Text Overlap](Results/plots/text_representation_svd.png)
 
 *Figure 4. Text representation space. The classes overlap because the transcripts reuse the same words across emotions.*
 
 #### Fusion Representation
 
-![Fusion Clusters](plots/fusion_representation_pca.png)
+![Fusion Clusters](Results/plots/fusion_representation_pca.png)
 
 *Figure 5. Final fused representation space. The separation mostly comes from the speech branch.*
 

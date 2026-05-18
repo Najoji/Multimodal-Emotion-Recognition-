@@ -20,7 +20,7 @@ def ensure_results_dirs() -> None:
         Path(folder).mkdir(parents=True, exist_ok=True)
 
 
-def save_metrics(name: str, y_true, y_pred, labels: list[str]) -> None:
+def save_metrics(name: str, y_true, y_pred, labels: list[str]) -> float:
     ensure_results_dirs()
 
     accuracy = accuracy_score(y_true, y_pred)
@@ -40,3 +40,4 @@ def save_metrics(name: str, y_true, y_pred, labels: list[str]) -> None:
     plt.tight_layout()
     plt.savefig(f"Results/plots/{name}_confusion_matrix.png", dpi=160)
     plt.close()
+    return accuracy

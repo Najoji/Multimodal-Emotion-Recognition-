@@ -7,7 +7,7 @@ This folder is split into two layers:
 
 Start with:
 
-- `FINAL_PROJECT_REPORT.md` for the complete report
+- `../FINAL_PROJECT_REPORT.md` for the complete report
 - `tables/README.md` for the meaning of each main table
 - `plots/README.md` for the meaning of each main figure
 
@@ -16,5 +16,13 @@ The main result to remember is:
 ```text
 Emotion2Vec+ speech-only speaker-holdout accuracy = 99.86%
 ```
+
+Historical random-split baselines are also preserved in:
+
+```text
+tables/random_split_baselines.csv
+```
+
+Those values are included for context, while speaker holdout remains the main final evaluation.
 
 The archived files are kept for traceability, but they are not needed to understand the final submission.

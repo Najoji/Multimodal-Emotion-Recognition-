@@ -4,6 +4,7 @@ These are the reviewer-facing tables that support the final report.
 
 | File | What it means |
 | --- | --- |
+| `random_split_baselines.csv` | Early baseline results under the original easy random split: speech `99.82%`, text `0.00%`, fusion `99.82%`. |
 | `speech_stage1_mfcc_baseline.csv` | First honest speech baseline: MFCC features with strict speaker holdout. |
 | `speech_stage1_mfcc_baseline_*_classification_report.csv` | Per-emotion precision, recall, and F1 for the MFCC baseline in each holdout direction. |
 | `speech_stage2_wav2vec2_baseline.csv` | Generic Wav2Vec2 speaker-holdout result before adaptation. |

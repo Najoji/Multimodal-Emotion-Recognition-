@@ -29,8 +29,11 @@ def main() -> None:
         feature_set=bundle.get("feature_set", "mfcc"),
     )
     predictions = bundle["model"].predict(x)
-    save_metrics(args.output_name, df["emotion"], predictions, bundle["labels"])
-    print(f"Saved {args.output_name} metrics.")
+    accuracy = save_metrics(args.output_name, df["emotion"], predictions, bundle["labels"])
+    print(f"Loaded model: {args.model_path}")
+    print(f"Evaluated saved test split: {args.test_split}")
+    print(f"Recomputed accuracy: {accuracy:.4f}")
+    print(f"Saved metrics: Results/tables/{args.output_name}_accuracy.csv and classification report.")
 
 
 if __name__ == "__main__":

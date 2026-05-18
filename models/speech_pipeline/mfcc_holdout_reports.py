@@ -70,10 +70,13 @@ def main() -> None:
             / f"speech_stage1_mfcc_baseline_{train_speaker}_to_{test_speaker}_classification_report.csv"
         )
 
-    pd.DataFrame(rows).to_csv(
+    result = pd.DataFrame(rows)
+    result.to_csv(
         ROOT / "Results" / "tables" / "speech_stage1_mfcc_baseline.csv",
         index=False,
     )
+    print(result.to_string(index=False))
+    print(f"average accuracy: {result['accuracy'].mean():.4f}")
 
 
 if __name__ == "__main__":

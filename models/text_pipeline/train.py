@@ -36,11 +36,15 @@ def main() -> None:
 
     labels = sorted(df["emotion"].unique().tolist())
     predictions = model.predict(test_df["transcript"])
-    save_metrics("text_only", test_df["emotion"], predictions, labels)
+    accuracy = save_metrics("text_only", test_df["emotion"], predictions, labels)
 
     joblib.dump({"model": model, "labels": labels}, "Results/checkpoints/text_only.joblib")
     test_df.to_csv("Results/tables/text_only_test_split.csv", index=False)
-    print("Saved text-only model and metrics.")
+    print(f"Trained text_only on {len(train_df)} samples and evaluated on {len(test_df)} samples.")
+    print(f"Random-split accuracy: {accuracy:.4f}")
+    print("Saved checkpoint: Results/checkpoints/text_only.joblib")
+    print("Saved test split: Results/tables/text_only_test_split.csv")
+    print("Saved metrics: Results/tables/text_only_accuracy.csv and classification report.")
 
 
 if __name__ == "__main__":

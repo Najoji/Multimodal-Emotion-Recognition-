@@ -75,7 +75,7 @@ def main() -> None:
         "--cache-path",
         default="Results/embedding_cache/wav2vec2_base_embeddings.joblib",
     )
-    parser.add_argument("--output-prefix", default="wav2vec2")
+    parser.add_argument("--output-prefix", default="speech_stage2_wav2vec2")
     args = parser.parse_args()
 
     ensure_results_dirs()
@@ -122,17 +122,16 @@ def main() -> None:
                 )
 
     result = pd.DataFrame(rows)
-    result.to_csv(f"Results/tables/{args.output_prefix}_domain_adaptation.csv", index=False)
+    detail_path = f"Results/tables/{args.output_prefix}_details.csv"
+    summary_path = f"Results/tables/{args.output_prefix}_adaptation.csv"
+    result.to_csv(detail_path, index=False)
     summary = (
         result.groupby(["transform", "l2_normalize"])["accuracy"]
         .mean()
         .reset_index()
         .sort_values("accuracy", ascending=False)
     )
-    summary.to_csv(
-        f"Results/tables/{args.output_prefix}_domain_adaptation_summary.csv",
-        index=False,
-    )
+    summary.to_csv(summary_path, index=False)
     print(summary.to_string(index=False))
 
 

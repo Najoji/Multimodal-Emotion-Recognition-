@@ -70,7 +70,7 @@ def main() -> None:
 
     labels = sorted(df["emotion"].unique().tolist())
     predictions = model.predict(x_test)
-    save_metrics(args.output_name, test_df["emotion"], predictions, labels)
+    accuracy = save_metrics(args.output_name, test_df["emotion"], predictions, labels)
 
     joblib.dump(
         {
@@ -84,7 +84,11 @@ def main() -> None:
         f"Results/checkpoints/{args.output_name}.joblib",
     )
     test_df.to_csv(f"Results/tables/{args.output_name}_test_split.csv", index=False)
-    print(f"Saved {args.output_name} model and metrics.")
+    print(f"Trained {args.output_name} on {len(train_df)} samples and evaluated on {len(test_df)} samples.")
+    print(f"Random-split accuracy: {accuracy:.4f}")
+    print(f"Saved checkpoint: Results/checkpoints/{args.output_name}.joblib")
+    print(f"Saved test split: Results/tables/{args.output_name}_test_split.csv")
+    print(f"Saved metrics: Results/tables/{args.output_name}_accuracy.csv and classification report.")
 
 
 if __name__ == "__main__":

@@ -1,127 +1,78 @@
 # Multimodal Emotion Recognition
 
-For a reviewer-friendly entry point, start with:
+This project studies emotion recognition on the Toronto Emotional Speech Set (TESS) using:
+
+1. speech-only input
+2. text-only input
+3. speech + text fusion
+
+The main project result is a staged improvement in speaker-holdout speech accuracy:
+
+| Stage | Model | Average accuracy |
+| --- | --- | ---: |
+| 1 | MFCC baseline | 49.50% |
+| 2 | Generic Wav2Vec2 + adaptation | 66.71% |
+| 3 | Emotion-finetuned Wav2Vec2 | 84.89% |
+| 4 | Emotion2Vec+ champion | 99.86% |
+
+For context, the original easy random-split baselines were:
+
+| Early baseline | Random-split accuracy |
+| --- | ---: |
+| Speech-only MFCC | 99.82% |
+| Text-only TF-IDF | 0.00% |
+| Fusion MFCC + TF-IDF | 99.82% |
+
+Those random-split values are kept as historical context; the final project comparison uses speaker holdout because it is a more honest cross-speaker test.
+
+## Read First
+
+- Full setup and reproduction guide: `SETUP_INSTRUCTIONS.md`
+- Final report: `FINAL_PROJECT_REPORT.md`
+- Development history: `PROJECT_LOG.md`
+- Final tables guide: `Results/tables/README.md`
+- Final plots guide: `Results/plots/README.md`
+
+## Repository Layout
 
 ```text
-REVIEWER_GUIDE.md
+models/
+  speech_pipeline/
+  text_pipeline/
+  fusion_pipeline/
+src/
+  speech_emotion/
+Results/
+  tables/
+  plots/
+  archive/
+  checkpoints/
+  embedding_cache/
+FINAL_PROJECT_REPORT.md
+PROJECT_LOG.md
+SETUP_INSTRUCTIONS.md
+requirements.txt
 ```
-
-This project predicts emotion from the Toronto Emotional Speech Set (TESS) using:
-
-1. Speech-only input
-2. Text-only input
-3. A fused speech + text model
-
-The first goal is to build clean, explainable baselines. After that, we can upgrade the models.
 
 ## Dataset
 
-Download TESS from Kaggle:
-
-https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess
-
-Put the extracted dataset inside:
+Download TESS from Kaggle and place the extracted audio files inside:
 
 ```text
 data/
 ```
 
-The code searches recursively for `.wav` files, so the exact folder nesting can vary.
-If the dataset is accidentally extracted twice, duplicate filenames are ignored.
+The loader searches recursively for `.wav` files and removes duplicate filenames if the dataset was accidentally extracted twice.
 
-## Project Layout
+## Final Outputs
 
-```text
-models/
-  speech_pipeline/
-    train.py
-    test.py
-  text_pipeline/
-    train.py
-    test.py
-  fusion_pipeline/
-    train.py
-    test.py
-src/
-  speech_emotion/
-    dataset.py
-    audio_features.py
-    evaluation.py
-Results/
-  checkpoints/
-  tables/
-  plots/
-requirements.txt
-START_HERE.md
-```
-
-## Setup
-
-Install Python 3.10 or 3.11 first. Then:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-## Run The Baselines
-
-Speech-only:
-
-```powershell
-python models\speech_pipeline\train.py --data-dir data
-python models\speech_pipeline\test.py
-```
-
-Enhanced speech upgrade:
-
-```powershell
-python models\speech_pipeline\train.py --data-dir data --feature-set enhanced --augment --classifier linear_svm --output-name speech_enhanced_aug_svm
-python models\speech_pipeline\test.py --model-path Results\checkpoints\speech_enhanced_aug_svm.joblib --test-split Results\tables\speech_enhanced_aug_svm_test_split.csv --output-name speech_enhanced_aug_svm_test
-python models\speech_pipeline\speaker_holdout_augmented.py --data-dir data
-```
-
-Text-only:
-
-```powershell
-python models\text_pipeline\train.py --data-dir data
-python models\text_pipeline\test.py
-```
-
-Fusion:
-
-```powershell
-python models\fusion_pipeline\train.py --data-dir data
-python models\fusion_pipeline\test.py
-```
-
-Generate report plots:
-
-```powershell
-python models\visualize_representations.py --data-dir data
-```
-
-## Current Baseline Choices
-
-- Speech features: MFCC summary statistics using `librosa`
-- Text features: TF-IDF over words extracted from TESS filenames
-- Classifier: Logistic Regression
-- Fusion: concatenate speech features and text features
-
-These are intentionally simple. They make a strong first milestone because they produce accuracy tables, confusion matrices, and failure cases quickly.
-
-## Report Artifacts
-
-The scripts save outputs under:
+Reviewer-facing results are stored in:
 
 - `Results/tables/`
 - `Results/plots/`
 
-Important plots include confusion matrices, the model comparison bar chart, and 2D representation plots for speech, text, and fusion.
+Older exploratory outputs are preserved in:
 
-For a plain-English explanation of the final tables and figures, see:
+- `Results/archive/`
 
-- `Results/tables/README.md`
-- `Results/plots/README.md`
-- `Results/FINAL_PROJECT_REPORT.md`
+For installation steps, run commands, dataset setup, and public-repository submission notes, see `SETUP_INSTRUCTIONS.md`.

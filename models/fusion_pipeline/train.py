@@ -52,7 +52,7 @@ def main() -> None:
 
     labels = sorted(df["emotion"].unique().tolist())
     predictions = classifier.predict(x_test)
-    save_metrics("fusion", test_df["emotion"], predictions, labels)
+    accuracy = save_metrics("fusion", test_df["emotion"], predictions, labels)
 
     joblib.dump(
         {
@@ -65,7 +65,11 @@ def main() -> None:
         "Results/checkpoints/fusion.joblib",
     )
     test_df.to_csv("Results/tables/fusion_test_split.csv", index=False)
-    print("Saved fusion model and metrics.")
+    print(f"Trained fusion on {len(train_df)} samples and evaluated on {len(test_df)} samples.")
+    print(f"Random-split accuracy: {accuracy:.4f}")
+    print("Saved checkpoint: Results/checkpoints/fusion.joblib")
+    print("Saved test split: Results/tables/fusion_test_split.csv")
+    print("Saved metrics: Results/tables/fusion_accuracy.csv and classification report.")
 
 
 if __name__ == "__main__":

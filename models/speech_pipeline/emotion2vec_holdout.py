@@ -148,17 +148,17 @@ def main() -> None:
             zero_division=0,
         )
         pd.DataFrame(report).transpose().to_csv(
-            f"Results/tables/emotion2vec_plus_base_{train_speaker}_to_{test_speaker}_classification_report.csv"
+            f"Results/tables/speech_stage4_emotion2vec_champion_{train_speaker}_to_{test_speaker}_classification_report.csv"
         )
         pd.DataFrame(confusion_matrix(test_df["emotion"], predictions, labels=labels)).to_csv(
-            f"Results/tables/emotion2vec_plus_base_{train_speaker}_to_{test_speaker}_confusion_matrix.csv",
+            f"Results/tables/speech_stage4_emotion2vec_champion_{train_speaker}_to_{test_speaker}_confusion_matrix.csv",
             index=False,
         )
 
     result = pd.DataFrame(rows)
-    result.to_csv("Results/tables/emotion2vec_plus_base_speaker_holdout.csv", index=False)
+    result.to_csv("Results/tables/speech_stage4_emotion2vec_champion.csv", index=False)
     pd.concat(all_predictions, ignore_index=True).to_csv(
-        "Results/tables/emotion2vec_plus_base_speaker_holdout_predictions.csv",
+        "Results/tables/speech_stage4_emotion2vec_champion_predictions.csv",
         index=False,
     )
     print(result.to_string(index=False))
@@ -167,4 +167,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
