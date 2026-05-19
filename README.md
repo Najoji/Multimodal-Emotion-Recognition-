@@ -8,7 +8,21 @@ This project studies emotion recognition on the Toronto Emotional Speech Set (TE
 2. **text only**
 3. **speech + text fusion**
 
-The project begins with simple baselines, then improves the speech model through several stages, culminating in a staged improvement in speaker-holdout speech accuracy:
+## Final Pipeline Results (Speaker-Holdout Evaluation)
+
+| Pipeline | Representation | Accuracy |
+| --- | --- | ---: |
+| Speech-only | Emotion2Vec+ embeddings | **99.86%** |
+| Text-only | TF-IDF features | **14.29%** |
+| Fusion | Speech + Text combined | **99.86%** |
+
+**Key Finding:** Text carries virtually no emotion information on TESS (14.29% = chance level). High-quality speech representations completely dominate; fusion adds zero value.
+
+---
+
+## Project Development: Four-Stage Speech Model Evolution
+
+The project evolved the speech model through four stages to reach the final 99.86% accuracy:
 
 | Stage | Model | Speaker-holdout accuracy |
 | --- | --- | ---: |
@@ -17,7 +31,13 @@ The project begins with simple baselines, then improves the speech model through
 | 3 | Emotion-finetuned Wav2Vec2 | 84.89% |
 | 4 | Emotion2Vec+ champion | 99.86% |
 
-For context, the original easy random-split baselines were:
+**Lesson:** Better representations matter far more than classifier complexity.
+
+---
+
+## Historical Context: Random-Split Baselines
+
+For reference, the original random-split evaluation (before speaker-holdout) produced misleading results:
 
 | Early baseline | Random-split accuracy |
 | --- | ---: |
@@ -25,7 +45,9 @@ For context, the original easy random-split baselines were:
 | Text-only TF-IDF | 0.00% |
 | Fusion MFCC + TF-IDF | 99.82% |
 
-Those random-split values are kept as historical context; the final project comparison uses speaker holdout because it is a more honest cross-speaker test.
+These were abandoned in favor of speaker-holdout because they mixed both speakers into both train and test sets, hiding overfitting to speaker identity.
+
+---
 
 ## Recommended Reading Order
 

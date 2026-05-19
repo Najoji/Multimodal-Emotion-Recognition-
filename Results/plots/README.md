@@ -2,7 +2,7 @@
 
 | File | What it shows |
 | --- | --- |
-| `speech_model_evolution.png` | Side-by-side speech representation progression: MFCC, generic Wav2Vec2, and final Emotion2Vec+. |
+| `speech_model_evolution.png` | Side-by-side speech representation progression across all 4 stages: MFCC baseline, generic Wav2Vec2, emotion-finetuned Wav2Vec2, and final Emotion2Vec+ champion. |
 | `speech_representation_pca.png` | Final speech embedding space from the temporal modelling block. |
 | `text_representation_svd.png` | Text representation space from the contextual modelling block; classes overlap strongly. |
 | `fusion_representation_pca.png` | Fused speech + text representation space from the fusion block. |

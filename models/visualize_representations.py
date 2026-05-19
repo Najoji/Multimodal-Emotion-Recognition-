@@ -176,17 +176,21 @@ def project_dense_features(features):
 
 
 def plot_speech_model_evolution(df):
-    """Plot 4: Compare MFCC, Wav2Vec2, and Emotion2Vec+ feature geometry."""
-    print("\nGenerating Speech Model Evolution Plot...")
+    """Plot 4: Compare MFCC, Generic Wav2Vec2, Emotion-Finetuned Wav2Vec2, and Emotion2Vec+ feature geometry."""
+    print("\nGenerating Speech Model Evolution Plot (All 4 Stages)...")
 
     mfcc_features = build_audio_feature_matrix(df["audio_path"].tolist())
     wav2vec_df = joblib.load(ROOT / "Results" / "embedding_cache" / "wav2vec2_base_embeddings.joblib")
+    emotion_ft_df = joblib.load(ROOT / "Results" / "embedding_cache" / "wav2vec2_large_robust_12_ft_emotion_msp_dim_embeddings.joblib")
     emotion2vec_features = np.vstack(df["embedding"].to_list())
+    
     wav2vec_features = np.vstack(wav2vec_df["embedding"].to_list())
+    emotion_ft_features = np.vstack(emotion_ft_df["embedding"].to_list())
 
     projections = [
         ("Stage 1: MFCC Baseline", project_dense_features(mfcc_features)),
-        ("Stage 2: Wav2Vec2", project_dense_features(wav2vec_features)),
+        ("Stage 2: Generic Wav2Vec2", project_dense_features(wav2vec_features)),
+        ("Stage 3: Emotion-Finetuned Wav2Vec2", project_dense_features(emotion_ft_features)),
         ("Stage 4: Emotion2Vec+ Champion", project_dense_features(emotion2vec_features)),
     ]
 
@@ -195,7 +199,7 @@ def plot_speech_model_evolution(df):
     colors = plt.cm.tab10(np.linspace(0, 1, len(unique_emotions)))
     emotion_to_color = {emotion: colors[i] for i, emotion in enumerate(unique_emotions)}
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharex=False, sharey=False)
+    fig, axes = plt.subplots(1, 4, figsize=(24, 6), sharex=False, sharey=False)
     for ax, (title, points) in zip(axes, projections):
         for emotion in unique_emotions:
             mask = emotions == emotion
@@ -213,9 +217,9 @@ def plot_speech_model_evolution(df):
         ax.grid(True, alpha=0.25)
 
     handles, labels = axes[-1].get_legend_handles_labels()
-    fig.legend(handles, labels, title="Emotion", loc="center right")
-    fig.suptitle("Speech Representation Evolution Across Model Stages")
-    plt.tight_layout(rect=[0, 0, 0.88, 0.94])
+    fig.legend(handles, labels, title="Emotion", loc="center right", bbox_to_anchor=(1.12, 0.5))
+    fig.suptitle("Speech Representation Evolution Across All 4 Model Stages")
+    plt.tight_layout(rect=[0, 0, 0.92, 0.94])
 
     output_path = ROOT / "Results" / "plots" / "speech_model_evolution.png"
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
