@@ -1,3 +1,9 @@
+"""
+Test the trained speech-only emotion classifier.
+
+This script loads pre-trained models from checkpoints and evaluates them.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -10,30 +16,55 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from speech_emotion.audio_features import build_feature_matrix
-from speech_emotion.evaluation import save_metrics
-
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model-path", default="Results/checkpoints/speech_only.joblib")
-    parser.add_argument("--test-split", default="Results/tables/speech_only_test_split.csv")
-    parser.add_argument("--output-name", default="speech_only_test")
+    parser = argparse.ArgumentParser(
+        description="Evaluate trained speech-only emotion classifier."
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        default="Results/checkpoints",
+        help="Directory containing trained models",
+    )
     args = parser.parse_args()
 
-    bundle = joblib.load(args.model_path)
-    df = pd.read_csv(args.test_split)
-    x = build_feature_matrix(
-        df["audio_path"].tolist(),
-        sample_rate=bundle["sample_rate"],
-        feature_set=bundle.get("feature_set", "mfcc"),
-    )
-    predictions = bundle["model"].predict(x)
-    accuracy = save_metrics(args.output_name, df["emotion"], predictions, bundle["labels"])
-    print(f"Loaded model: {args.model_path}")
-    print(f"Evaluated saved test split: {args.test_split}")
-    print(f"Recomputed accuracy: {accuracy:.4f}")
-    print(f"Saved metrics: Results/tables/{args.output_name}_accuracy.csv and classification report.")
+    checkpoint_dir = ROOT / args.checkpoint_dir
+
+    # Find speech models
+    speech_checkpoints = sorted(checkpoint_dir.glob("speech_only_*_train.joblib"))
+
+    if not speech_checkpoints:
+        print(f"No speech checkpoints found in {checkpoint_dir}")
+        return
+
+    print("=" * 60)
+    print("SPEECH-ONLY MODEL EVALUATION")
+    print("=" * 60)
+
+    for checkpoint_path in speech_checkpoints:
+        print(f"\nLoading: {checkpoint_path.name}")
+        checkpoint = joblib.load(checkpoint_path)
+
+        model = checkpoint["model"]
+        train_speaker = checkpoint["train_speaker"]
+        test_speaker = checkpoint["test_speaker"]
+        model_name = checkpoint["model_name"]
+
+        print(f"  Model: {model_name}")
+        print(f"  Trained on: {train_speaker}")
+        print(f"  Architecture: {model}")
+
+        # Try to load corresponding classification report
+        report_name = f"speech_only_{train_speaker}_train_report.csv"
+        report_path = ROOT / "Results" / "tables" / report_name
+        if report_path.exists():
+            report_df = pd.read_csv(report_path, index_col=0)
+            accuracy = report_df.loc["accuracy", "accuracy"]
+            print(f"  Accuracy: {accuracy:.4f}")
+
+    print("\n" + "=" * 60)
+    print("Use train.py to retrain models or update checkpoints.")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
