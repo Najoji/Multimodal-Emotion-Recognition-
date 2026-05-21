@@ -8,15 +8,24 @@ Result: ~14.29% accuracy (chance level for 7 emotions).
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+import warnings
 from pathlib import Path
 
-import joblib
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.pipeline import make_pipeline
+# Suppress all warnings and notices before importing libraries
+warnings.filterwarnings("ignore")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+# Redirect stderr to devnull during imports to suppress warnings
+import contextlib
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    import joblib
+    import pandas as pd
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score, classification_report
+    from sklearn.pipeline import make_pipeline
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))

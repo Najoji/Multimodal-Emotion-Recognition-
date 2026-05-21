@@ -1,4 +1,0 @@
-feature_mode,accuracy
-embedding_only,0.8489285714285715
-embedding_plus_handcrafted,0.8010714285714285
-handcrafted_only,0.5592857142857144

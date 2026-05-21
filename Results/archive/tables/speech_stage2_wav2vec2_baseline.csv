@@ -1,0 +1,3 @@
+train_speaker,test_speaker,model_name,classifier,accuracy
+OAF,YAF,facebook/wav2vec2-base,linear_svm,0.6478571428571429
+YAF,OAF,facebook/wav2vec2-base,linear_svm,0.61

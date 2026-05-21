@@ -1,31 +1,76 @@
-# Main Tables Guide
+# Final Results Tables (Guide)
 
-These are the reviewer-facing tables that support the final report.
+This folder contains only the **final pipeline outputs** for the three official models: speech-only, text-only, and fusion. All results are computed using **speaker-holdout** evaluation (train on OAF, test on YAF, and vice versa). When a file name includes `OAF`, it means the model was trained on OAF and evaluated on YAF; `YAF` means the opposite.
 
-| File | What it means |
-| --- | --- |
-| `random_split_baselines.csv` | Early baseline results under the original easy random split: speech `99.82%`, text `0.00%`, fusion `99.82%`. |
-| `speech_stage1_mfcc_baseline.csv` | First honest speech baseline: MFCC features with strict speaker holdout. |
-| `speech_stage1_mfcc_baseline_*_classification_report.csv` | Per-emotion precision, recall, and F1 for the MFCC baseline in each holdout direction. |
-| `speech_stage2_wav2vec2_baseline.csv` | Generic Wav2Vec2 speaker-holdout result before adaptation. |
-| `speech_stage2_wav2vec2_adaptation.csv` | Domain-adaptation comparison for Wav2Vec2; the best row reaches `66.71%`. |
-| `speech_stage2_wav2vec2_*_classification_report.csv` | Per-emotion reports for the generic Wav2Vec2 stage. |
-| `speech_stage3_emotion_finetuned.csv` | Comparison showing why the emotion-finetuned embedding became the stage-3 choice. |
-| `speech_stage3_emotion_finetuned_holdout.csv` | Speaker-holdout result for the emotion-finetuned Wav2Vec2 model. |
-| `speech_stage3_emotion_finetuned_*_classification_report.csv` | Per-emotion reports for the emotion-finetuned stage. |
-| `speech_stage4_emotion2vec_champion.csv` | Final champion result: Emotion2Vec+ under strict speaker holdout. |
-| `speech_stage4_emotion2vec_champion_*_classification_report.csv` | Per-emotion reports for the final champion model. |
-| `speech_stage4_emotion2vec_champion_*_confusion_matrix.csv` | Confusion matrices for the final champion model. |
-| `speech_stage4_emotion2vec_champion_predictions.csv` | Per-file predictions from the final champion; useful for failure-case analysis. |
-| `text_speaker_holdout_accuracy.csv` | Final text-only result under speaker holdout. |
-| `fusion_speaker_holdout_accuracy.csv` | Final fusion result under speaker holdout. |
-| `fusion_speaker_holdout_*_classification_report.csv` | Per-emotion reports for the fusion model. |
+For completeness, **both train-time and test-time reports are included**. The train scripts evaluate on the held-out speaker and save a report; the test scripts reload the checkpoint and re-evaluate the same split. Because the split and model are identical, the train and test reports should match. We keep both so a reviewer can see the evaluation reproduced from saved checkpoints.
 
-## How To Read The Common Files
+## 1) Accuracy Summaries (overall performance)
 
-- `accuracy` tables answer: **how often was the model correct overall?**
-- `classification_report` tables answer: **which emotions were easy or hard?**
-- `confusion_matrix` tables answer: **which labels were mistaken for which other labels?**
-- `predictions` tables answer: **which exact files were right or wrong?**
+Each accuracy CSV has **two rows** (OAF -> YAF and YAF -> OAF) and reports overall accuracy for the held-out speaker.
 
-Everything else from intermediate experiments is kept in `../archive/tables/`.
+- `speech_only_accuracy.csv`
+	- Columns: `train_speaker`, `test_speaker`, `model`, `classifier`, `accuracy`
+	- Meaning: final speech-only model (Emotion2Vec+) evaluated on both holdout directions.
+
+- `text_only_accuracy.csv`
+	- Columns: `train_speaker`, `test_speaker`, `representation`, `classifier`, `accuracy`
+	- Meaning: TF-IDF + Logistic Regression baseline on both holdout directions.
+
+- `fusion_accuracy.csv`
+	- Columns: `train_speaker`, `test_speaker`, `modalities`, `classifier`, `accuracy`
+	- Meaning: fusion of speech embeddings + text TF-IDF, with full model metadata.
+
+- `fusion_speaker_holdout_accuracy.csv`
+	- Columns: `train_speaker`, `test_speaker`, `accuracy`
+	- Meaning: compact duplicate of `fusion_accuracy.csv` kept for report references.
+
+The average across both rows is what you see summarized in the main README/report.
+
+## 2) Per-Emotion Reports (train-time evaluation)
+
+These are produced by each `train.py`. Even though they are created during training, they **evaluate the held-out speaker**, so they reflect test performance.
+
+- `speech_only_OAF_train_report.csv`
+	- OAF-trained model evaluated on YAF.
+- `speech_only_YAF_train_report.csv`
+	- YAF-trained model evaluated on OAF.
+- `text_only_OAF_train_report.csv`
+	- OAF-trained text model evaluated on YAF.
+- `text_only_YAF_train_report.csv`
+	- YAF-trained text model evaluated on OAF.
+- `fusion_OAF_train_report.csv`
+	- OAF-trained fusion model evaluated on YAF.
+- `fusion_YAF_train_report.csv`
+	- YAF-trained fusion model evaluated on OAF.
+
+Each file is a standard sklearn classification report with rows for each emotion plus `accuracy`, `macro avg`, and `weighted avg`, and columns: `precision`, `recall`, `f1-score`, `support`.
+
+## 3) Per-Emotion Reports (test-time evaluation)
+
+These are produced by each `test.py` using saved checkpoints and should **match the train-time reports** since they evaluate the same holdout split.
+
+- `speech_only_OAF_test_report.csv`
+- `speech_only_YAF_test_report.csv`
+- `text_only_OAF_test_report.csv`
+- `text_only_YAF_test_report.csv`
+- `fusion_OAF_test_report.csv`
+- `fusion_YAF_test_report.csv`
+
+## 4) Legacy Fusion Holdout Reports (kept for backward compatibility)
+
+These were generated by an earlier fusion script and are equivalent to the fusion reports above, but with a different file naming pattern. They are retained because some write-ups reference them.
+
+- `fusion_speaker_holdout_OAF_to_YAF_classification_report.csv`
+- `fusion_speaker_holdout_YAF_to_OAF_classification_report.csv`
+
+## 5) Reading Report
+
+- The `accuracy` row is the overall accuracy for that holdout direction.
+- Each emotion row shows precision, recall, and F1 for that class.
+- `support` is the number of samples for that class.
+
+Confusion matrices for the final pipelines are stored in `Results/plots/`.
+
+## 6) Older Experiments
+
+All intermediate experiments and discarded baselines are kept in `../archive/tables/` for completeness, but are not required for the final review.

@@ -1,4 +1,0 @@
-model,random_split_accuracy
-speech_only_mfcc_baseline,0.9982142857142857
-text_only_tfidf_baseline,0.0
-fusion_mfcc_tfidf_baseline,0.9982142857142857

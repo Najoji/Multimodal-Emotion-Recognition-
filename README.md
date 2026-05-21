@@ -35,17 +35,9 @@ The project evolved the speech model through four stages to reach the final 99.8
 
 ---
 
-## Historical Context: Random-Split Baselines
+## Evaluation Methodology: Speaker-Holdout
 
-For reference, the original random-split evaluation (before speaker-holdout) produced misleading results:
-
-| Early baseline | Random-split accuracy |
-| --- | ---: |
-| Speech-only MFCC | 99.82% |
-| Text-only TF-IDF | 0.00% |
-| Fusion MFCC + TF-IDF | 99.82% |
-
-These were abandoned in favor of speaker-holdout because they mixed both speakers into both train and test sets, hiding overfitting to speaker identity.
+All models use **speaker-holdout cross-validation** to ensure robust generalization. We train on one speaker (OAF: older adult female) and test on the other (YAF: younger adult female), then reverse. This prevents overfitting to speaker identity and provides a realistic measure of how well the model generalizes to unseen speakers. The reported accuracies (99.86%, 14.29%, 99.86%) represent the average across both speaker pairs.
 
 ---
 
@@ -96,7 +88,6 @@ project/
 │   │   ├── Visualization plots
 │   │   └── README.md
 │   ├── checkpoints/
-│   ├── embedding_cache/
 │   └── archive/
 ├── data/
 │   └── [TESS dataset files]
@@ -195,7 +186,7 @@ Core dependencies include:
 
 ---
 
-## 4. Official Train/Test Scripts (PDF Deliverable)
+## 4. Official Train/Test Scripts 
 
 The `train.py` and `test.py` files in each pipeline folder satisfy the PDF deliverable requirements. These scripts use the **final best models** with **speaker-holdout evaluation**.
 
@@ -209,6 +200,7 @@ python models\speech_pipeline\train.py
 - Uses Emotion2Vec+ (state-of-the-art emotion model)
 - **Expected:** 99.86% average speaker-holdout accuracy
 - Saves checkpoints and classification reports to `Results/`
+- **Note:** You may see a "ffmpeg is not installed" notice at startup. This is harmless—the script works fine using torchaudio as a fallback.
 
 **Text-only (TF-IDF):**
 ```powershell
@@ -225,6 +217,7 @@ python models\fusion_pipeline\train.py
 - Combines Emotion2Vec+ embeddings + TF-IDF features  
 - Shows that weak modalities don't help strong ones
 - **Expected:** 99.86% average speaker-holdout accuracy (identical to speech-only)
+- **Note:** You may see a "ffmpeg is not installed" notice at startup. This is harmless—the script works fine using torchaudio as a fallback.
 
 ### Evaluate All Models
 
@@ -243,7 +236,7 @@ python models\text_pipeline\test.py
 python models\fusion_pipeline\test.py
 ```
 
-All test scripts load trained checkpoints from `Results/checkpoints/` and display accuracy summaries.
+All test scripts load trained checkpoints from `Results/checkpoints/` and display accuracy summaries. Checkpoints are generated locally and are not committed to GitHub.
 
 ---
 
@@ -282,6 +275,18 @@ python models\speech_pipeline\archive\emotion2vec_holdout.py
 99.86% speaker-holdout accuracy — state-of-the-art emotion speech model.
 
 These scripts are provided for **educational exploration** only. For the official deliverable, use the `train.py` and `test.py` scripts in the main folder.
+
+---
+
+## 5A. Text and Fusion Pipeline Details
+
+### Text-only pipeline (models/text_pipeline/)
+
+The text-only pipeline treats each clip's transcript (a single word derived from the filename) as the input. It lowercases the text and converts it into TF-IDF features with unigrams and bigrams, then trains a balanced Logistic Regression classifier under the same speaker-holdout setting (OAF -> YAF, then YAF -> OAF). Because TESS words carry minimal emotion content, this pipeline stays near chance at about 14.29% accuracy. Evaluation artifacts are written to the `Results/tables/` and `Results/plots/` folders.
+
+### Fusion pipeline (models/fusion_pipeline/)
+
+The fusion pipeline combines Emotion2Vec+ speech embeddings with TF-IDF text features by concatenating both representations and training a balanced Linear SVM. Speech embeddings are standardized and L2-normalized, while text follows the same TF-IDF setup as the text-only model. It uses speaker-holdout evaluation and reaches the same 99.86% accuracy as speech-only, showing that text adds no measurable signal on TESS. Fusion outputs are also stored under `Results/` for tables and plots.
 
 ---
 

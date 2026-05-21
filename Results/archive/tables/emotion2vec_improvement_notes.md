@@ -1,16 +1,18 @@
-# Emotion2Vec+ Follow-Up
+# Emotion2Vec+ Improvement Notes (Archive)
 
-## Why I Tested It
+This note documents the jump from the emotion-finetuned Wav2Vec2 stage (~mid-80s) to an **emotion-specialized speech model** that is explicitly trained for affective cues.
 
-After the emotion-specialized Wav2Vec2 model reached the mid-80s, the next sensible step was to try a model built more directly for speech emotion recognition instead of spending more time on augmentation first.
+## Why It Was Tested
+
+After reaching the mid-80% range with an emotion-finetuned Wav2Vec2 model, the next logical step was to try a model **purpose-built for speech emotion recognition** instead of continuing with augmentation on generic speech embeddings.
 
 ## Setup
 
-- model: `iic/emotion2vec_plus_base`
-- evaluation: strict speaker holdout
-- classifier: `StandardScaler -> L2 normalization -> Linear SVM (C=0.1)`
+- **Model:** `iic/emotion2vec_plus_base`
+- **Evaluation:** strict speaker-holdout (OAF -> YAF, then YAF -> OAF)
+- **Classifier:** `StandardScaler` -> L2 normalization -> `LinearSVC(C=0.1, balanced)`
 
-## Result
+## Results
 
 | Train Speaker | Test Speaker | Accuracy |
 | --- | --- | ---: |
@@ -23,23 +25,23 @@ Average speaker-holdout accuracy:
 99.86%
 ```
 
-## Sanity Check
+## Sanity Check (Label Shuffle)
 
-To check that the score was not coming from a broken split or accidental label leakage, I trained the same classifier after shuffling the training labels.
+To verify that the score is not due to leakage or a broken split, the same pipeline was trained with **shuffled training labels**. Performance dropped to near chance:
 
-| Train Speaker | Test Speaker | Accuracy With Shuffled Labels |
+| Train Speaker | Test Speaker | Accuracy (Shuffled Labels) |
 | --- | --- | ---: |
 | OAF | YAF | 15.36% |
 | YAF | OAF | 9.14% |
 
-These values are near chance for a 7-class task, so the real high score depends on meaningful emotion structure in the embeddings.
+For a 7-class task, chance is ~14.29%, so these values confirm that the real gains come from meaningful emotion structure in the embeddings.
 
 ## Decision
 
-The main model-selection question is now answered. `Emotion2Vec+ base` is far stronger on this dataset than:
+Emotion2Vec+ clearly dominates earlier approaches on TESS speaker-holdout:
 
-- handcrafted features
-- generic Wav2Vec2
-- the earlier emotion-specialized Wav2Vec2 model
+- Handcrafted features
+- Generic Wav2Vec2
+- Emotion-finetuned Wav2Vec2
 
-Because the result is already almost perfect on TESS speaker holdout, augmentation is no longer the first priority. It would make more sense as a robustness experiment later, not as the main path for improving the headline result.
+Because the result is already near-perfect, augmentation is no longer the first priority for improving headline accuracy. Any further augmentation is best treated as a **robustness study**, not the main optimization path.

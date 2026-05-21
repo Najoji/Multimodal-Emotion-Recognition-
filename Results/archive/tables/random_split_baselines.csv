@@ -1,0 +1,4 @@
+early_baseline,random_split_accuracy,notes
+Speech-only MFCC,0.9982,"Random split baseline; speaker identity appears in both train and test"
+Text-only TF-IDF,0.0000,"Single-word transcripts carry no emotion signal"
+Fusion MFCC + TF-IDF,0.9982,"Text adds no signal on random split"

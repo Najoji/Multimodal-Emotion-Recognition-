@@ -1,0 +1,3 @@
+train_speaker,test_speaker,representation,classifier,accuracy
+OAF,YAF,TF-IDF(ngrams=1-2),LogisticRegression(balanced),0.14285714285714285
+YAF,OAF,TF-IDF(ngrams=1-2),LogisticRegression(balanced),0.14285714285714285

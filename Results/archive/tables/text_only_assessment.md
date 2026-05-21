@@ -1,8 +1,10 @@
-# Text-Only Assessment
+# Text-Only Assessment (Archive)
 
-The text-only model was tested using the held-out test split from `Results/tables/text_only_test_split.csv`.
+This note documents why the text-only pipeline performs poorly on TESS and why that result is expected.
 
-## Result
+## Result (Historical Baseline)
+
+The text-only model was evaluated using the held-out test split from `text_only_test_split.csv`.
 
 | Model | Test Accuracy |
 | --- | ---: |
@@ -10,20 +12,10 @@ The text-only model was tested using the held-out test split from `Results/table
 
 ## Why This Happens
 
-The TESS dataset is not a strong dataset for text-only emotion recognition. Each transcript is usually a single neutral word, such as:
+TESS transcripts are usually **single neutral words** (e.g., `back`, `bar`, `dog`, `road`, `young`). The same word appears in **every emotion class**, because emotion is conveyed by **how the word is spoken**, not by the word itself. As a result, the text contains almost no emotion signal.
 
-- `back`
-- `bar`
-- `dog`
-- `road`
-- `young`
+That makes the text-only model a **negative baseline**: it demonstrates that the dataset’s emotion information is acoustic, not semantic. A random or majority-class predictor can hit chance-level accuracy, but that does not mean the text is useful.
 
-The same words appear across all emotion classes. For example, the word `back` can be spoken as angry, happy, sad, fearful, neutral, and so on. Therefore, the word itself does not contain reliable emotion information.
+## Interpretation for Report
 
-In this project, the text-only model is still useful as a required baseline. It shows that emotion in TESS is carried mainly by acoustic speech cues rather than the transcript content.
-
-A dummy classifier can score around chance level by ignoring the text and always or randomly guessing labels. That does not mean the transcript has useful emotion information. It only gives a lower reference point for comparison.
-
-## Interpretation For Report
-
-The text-only pipeline was evaluated using accuracy, precision, recall, F1-score, and a confusion matrix. Its poor performance indicates that isolated word transcripts are insufficient for emotion prediction in TESS. A stronger text-only model such as BERT would not solve this specific limitation because the input text itself lacks emotional context.
+The text-only pipeline is intentionally weak on this dataset. Even a stronger text model (e.g., BERT) would still struggle, because the underlying input text lacks emotional context. This result supports the central claim that **speech cues dominate** emotion recognition on TESS.

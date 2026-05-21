@@ -35,8 +35,8 @@ Results/
   tables/
   plots/
   archive/
-  checkpoints/
-  embedding_cache/
+  checkpoints/        (local, gitignored)
+  embedding_cache/    (local, gitignored)
 README.md
 SETUP_INSTRUCTIONS.md
 FINAL_PROJECT_REPORT.md
@@ -44,6 +44,7 @@ requirements.txt
 ```
 
 The final reviewer-facing outputs are kept in `Results/tables/` and `Results/plots/`. Older exploratory outputs are preserved in `Results/archive/` so the main folders stay readable.
+Checkpoints and embedding caches are generated locally and are not committed to GitHub.
 
 ## 3. Dataset Loading
 
@@ -567,12 +568,21 @@ PROJECT_LOG.md
 ### Final tables
 
 ```text
-Results/tables/speech_stage1_mfcc_baseline.csv
-Results/tables/speech_stage2_wav2vec2_adaptation.csv
-Results/tables/speech_stage3_emotion_finetuned.csv
-Results/tables/speech_stage4_emotion2vec_champion.csv
-Results/tables/text_speaker_holdout_accuracy.csv
-Results/tables/fusion_speaker_holdout_accuracy.csv
+Results/tables/speech_only_accuracy.csv
+Results/tables/text_only_accuracy.csv
+Results/tables/fusion_accuracy.csv
+Results/tables/README.md
+```
+
+### Stage tables (archive)
+
+```text
+Results/archive/tables/speech_stage1_mfcc_baseline.csv
+Results/archive/tables/speech_stage2_wav2vec2_adaptation.csv
+Results/archive/tables/speech_stage3_emotion_finetuned.csv
+Results/archive/tables/speech_stage4_emotion2vec_champion.csv
+Results/archive/tables/text_speaker_holdout_accuracy.csv
+Results/archive/tables/random_split_baselines.csv
 ```
 
 ### Final plots
@@ -584,14 +594,3 @@ Results/plots/text_representation_svd.png
 Results/plots/fusion_representation_pca.png
 ```
 
-## 20. What Still Remains Before Submission
-
-The technical project is complete. The remaining submission task is to:
-
-1. push the cleaned repository to a public GitHub repo
-2. make sure any submitted Drive links are public
-3. verify the links in an incognito browser before sending them
-
-## 21. Report Story I Can Use Later
-
-I first built simple baselines for speech, text, and fusion. The random-split speech result looked nearly perfect, but speaker holdout showed that the original model did not generalize well to an unseen speaker. I improved the system in stages: handcrafted features, augmentation, generic pretrained speech embeddings, emotion-finetuned embeddings, and finally Emotion2Vec+ embeddings. The strongest improvement came from using representations that were already specialized for emotion, while the text branch stayed near chance because the TESS transcripts themselves do not contain meaningful emotional information. The final lesson is that better representations mattered much more than more complicated classifiers.

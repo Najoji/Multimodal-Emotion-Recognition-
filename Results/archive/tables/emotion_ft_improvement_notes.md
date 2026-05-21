@@ -1,14 +1,16 @@
-# Emotion-Specialized Pretrained Model Results
+# Emotion-Finetuned Wav2Vec2 Improvement Notes (Archive)
 
-The strongest speaker-holdout result found so far uses:
+This note summarizes the gains from switching to an **emotion-specialized pretrained speech model** after generic wav2vec2 baselines plateaued.
 
-```text
+## Model Used
+
+```
 audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim
 ```
 
-This is an emotion-specialized pretrained speech model, unlike generic `wav2vec2-base`, which is mainly pretrained for general speech representation / ASR transfer.
+Unlike `wav2vec2-base` (generic speech representation), this model is finetuned specifically for emotion-related speech cues.
 
-## Main Results
+## Main Results (Speaker-Holdout)
 
 | Method | OAF -> YAF | YAF -> OAF | Average |
 | --- | ---: | ---: | ---: |
@@ -25,25 +27,29 @@ This is an emotion-specialized pretrained speech model, unlike generic `wav2vec2
 | Mean only | 84.36% |
 | Standard deviation only | 79.79% |
 
+Mean + standard deviation pooling provides the strongest overall performance.
+
 ## Interpretation
 
-The large improvement shows that the choice of pretrained representation matters more than small classifier changes. A model already trained for emotion-related speech structure transfers much better to speaker-independent TESS evaluation than a generic speech representation model.
+The large jump from ~63% to ~85% shows that **representation quality dominates** small classifier changes. An emotion-specialized pretrained model transfers far better to speaker-independent TESS evaluation than a generic speech model.
 
-## Current Best Strict Speaker-Holdout Result
+## Best Strict Speaker-Holdout Result
 
-```text
+```
 84.89%
 ```
 
-Files:
+## Related Files (Archive Tables)
 
-```text
-Results/tables/wav2vec2-large-robust-12-ft-emotion-msp-dim_speaker_holdout.csv
-Results/tables/emotion_ft_wav2vec2_domain_adaptation.csv
-Results/tables/emotion_ft_wav2vec2_domain_adaptation_summary.csv
-Results/tables/emotion_ft_svm_sweep.csv
-Results/tables/emotion_ft_svm_sweep_summary.csv
-Results/tables/emotion_ft_pooling_compare.csv
-Results/tables/emotion_ft_pooling_compare_summary.csv
+These files capture the detailed sweeps and comparisons for this stage:
+
+```
+Results/archive/tables/wav2vec2-large-robust-12-ft-emotion-msp-dim_speaker_holdout_predictions.csv
+Results/archive/tables/emotion_ft_wav2vec2_domain_adaptation.csv
+Results/archive/tables/emotion_ft_wav2vec2_domain_adaptation_summary.csv
+Results/archive/tables/emotion_ft_svm_sweep.csv
+Results/archive/tables/emotion_ft_svm_sweep_summary.csv
+Results/archive/tables/emotion_ft_pooling_compare.csv
+Results/archive/tables/emotion_ft_pooling_compare_summary.csv
 ```
 

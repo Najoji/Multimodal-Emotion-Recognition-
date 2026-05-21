@@ -8,18 +8,27 @@ It uses Emotion2Vec+ (state-of-the-art emotion-specialized speech model) instead
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+import warnings
 from pathlib import Path
 
-import joblib
-import librosa
-import numpy as np
-import pandas as pd
-from funasr import AutoModel
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import Normalizer, StandardScaler
-from sklearn.svm import LinearSVC
+# Suppress all warnings and notices before importing libraries
+warnings.filterwarnings("ignore")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+# Redirect stderr to devnull during imports to suppress ffmpeg notice
+import contextlib
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    import joblib
+    import librosa
+    import numpy as np
+    import pandas as pd
+    from funasr import AutoModel
+    from sklearn.metrics import accuracy_score, classification_report
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import Normalizer, StandardScaler
+    from sklearn.svm import LinearSVC
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))

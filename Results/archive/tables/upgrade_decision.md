@@ -1,60 +1,53 @@
-# Upgrade Decision
+# Upgrade Decision (Archive)
 
-Five possible improvement paths were considered:
+This note records a historical decision point after the initial speaker-holdout baseline dropped to ~48-51% accuracy. The goal was to improve **speaker robustness** without overhauling the entire pipeline.
+
+## Options Considered
 
 1. Better handcrafted features
 2. Data augmentation
 3. CNN on spectrograms
-4. Pretrained speech embeddings such as HuBERT, wav2vec 2.0, or WavLM
-5. More diverse data
+4. Pretrained speech embeddings (HuBERT, wav2vec 2.0, WavLM)
+5. More diverse data (additional speakers or datasets)
 
 ## Decision
 
-The selected immediate path is:
+**Chosen path:** better handcrafted features + data augmentation.
 
-```text
-Better handcrafted features + data augmentation
-```
+**Why this choice:**
 
-This was chosen because it fits the current codebase, is easy to explain in the report, does not require GPU access, and directly targets the speaker-overfitting issue.
+- Fits the existing MFCC-based codebase with minimal refactoring
+- Directly targets speaker-style variance through augmentation
+- Lower risk than jumping immediately to large pretrained models
 
-## What Was Added
+## What Was Implemented
 
-Enhanced speech features:
+**Enhanced feature set** (in addition to MFCCs):
 
-- MFCC
-- Delta MFCC
-- Delta-delta MFCC
-- RMS energy
-- Zero-crossing rate
-- Spectral centroid
-- Spectral bandwidth
-- Spectral rolloff
-- Spectral flatness
-- Chroma
-- Spectral contrast
-- Optional pitch mode
+- Delta and delta-delta MFCCs
+- RMS energy and zero-crossing rate
+- Spectral centroid, bandwidth, rolloff, flatness
+- Chroma and spectral contrast
+- Optional pitch features
 
-Data augmentation:
+**Augmentations applied:**
 
 - Noise injection
-- Volume increase/decrease
+- Volume scaling
 - Pitch shifting
 - Time stretching
 
-Classifier:
-
-- Linear SVM
+**Classifier:** Linear SVM
 
 ## Results
 
-Random-split performance stayed very high:
+Random-split accuracy remained extremely high (easy setting):
 
 | Model | Accuracy |
 | --- | ---: |
 | Enhanced + Augmentation + Linear SVM | 99.82% |
 
-Speaker-holdout performance improved:
+Speaker-holdout accuracy improved:
 
 | Train Speaker | Test Speaker | Accuracy |
 | --- | --- | ---: |
@@ -67,19 +60,19 @@ Average speaker-holdout accuracy:
 58.18%
 ```
 
-This is better than the original speaker-holdout result of about 48-51%, but it is still far below the random-split result.
+This is a meaningful gain over the original 48-51% holdout performance, but still far below random-split accuracy.
 
 ## Interpretation
 
-The upgrade reduced some speaker dependence but did not fully solve speaker-independent emotion recognition. This supports the conclusion that TESS is limited for speaker-independent modelling because it has only two speakers.
+Feature enrichment and augmentation reduce speaker dependence but do not eliminate it. The core limitation is the dataset itself (two speakers), which makes speaker-independent emotion recognition inherently hard at this stage.
 
-## Next Best Path
+## Recommended Next Step
 
-If more improvement is required, the next recommended step is pretrained speech embeddings:
+If further improvement is required, the next logical upgrade is to use **pretrained speech embeddings** trained on large corpora:
 
 - wav2vec 2.0
 - HuBERT
 - WavLM
 
-These models are trained on large speech corpora and are more likely to produce speaker-robust features than handcrafted audio features.
+These models tend to produce more speaker-robust representations than handcrafted features and were the basis for later stages in the project.
 
