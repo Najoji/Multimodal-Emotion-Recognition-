@@ -35,8 +35,8 @@ Results/
   tables/
   plots/
   archive/
-  checkpoints/        (local, gitignored)
-  embedding_cache/    (local, gitignored)
+  checkpoints/
+  embedding_cache/
 README.md
 SETUP_INSTRUCTIONS.md
 FINAL_PROJECT_REPORT.md
@@ -44,7 +44,6 @@ requirements.txt
 ```
 
 The final reviewer-facing outputs are kept in `Results/tables/` and `Results/plots/`. Older exploratory outputs are preserved in `Results/archive/` so the main folders stay readable.
-Checkpoints and embedding caches are generated locally and are not committed to GitHub.
 
 ## 3. Dataset Loading
 
@@ -560,7 +559,6 @@ The visual progression matches the accuracy progression from about `49%` to almo
 
 ```text
 README.md
-SETUP_INSTRUCTIONS.md
 FINAL_PROJECT_REPORT.md
 PROJECT_LOG.md
 ```
@@ -568,21 +566,12 @@ PROJECT_LOG.md
 ### Final tables
 
 ```text
-Results/tables/speech_only_accuracy.csv
-Results/tables/text_only_accuracy.csv
-Results/tables/fusion_accuracy.csv
-Results/tables/README.md
-```
-
-### Stage tables (archive)
-
-```text
 Results/archive/tables/speech_stage1_mfcc_baseline.csv
 Results/archive/tables/speech_stage2_wav2vec2_adaptation.csv
 Results/archive/tables/speech_stage3_emotion_finetuned.csv
 Results/archive/tables/speech_stage4_emotion2vec_champion.csv
 Results/archive/tables/text_speaker_holdout_accuracy.csv
-Results/archive/tables/random_split_baselines.csv
+Results/tables/fusion_speaker_holdout_accuracy.csv
 ```
 
 ### Final plots

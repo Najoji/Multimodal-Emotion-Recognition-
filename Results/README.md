@@ -1,50 +1,46 @@
-# Results Guide (Reviewer Navigation)
+# Results — Guide for Reviewers
 
-This folder is the **single place to find all results**. It is organized into two layers so the final outcomes are easy to locate while still keeping full experimental traceability.
+Purpose
+-------
+This directory consolidates the final outputs produced by the project and provides a concise navigation path for reviewers. Files here are organized to make the principal evaluation artifacts immediately discoverable while preserving a full experiment archive for reproducibility and traceability.
 
-## 1) What You Should Read First
+Quick Start (for reviewers)
+---------------------------
+- Read the project synopsis and methodology in `../FINAL_PROJECT_REPORT.md` for experimental context.
+- Consult `tables/README.md` for definitions and schema of the result tables.
+- Consult `plots/README.md` for descriptions of the figures and visualization conventions.
 
-- `../FINAL_PROJECT_REPORT.md` — full report with methodology and analysis.
-- `tables/README.md` — explains every final results table.
-- `plots/README.md` — explains every final results plot.
+Primary reviewer-facing outputs
+-------------------------------
+These items are the authoritative artifacts for assessment and comparison:
 
-## 2) Final Reviewer-Facing Results
+- Tables: `Results/tables/`
+  - Final accuracy summaries and per-class classification reports (train and test splits reported).
+  - CSV files in this folder contain the numeric results used for plots and the summary tables in the report.
 
-These are the files you should use for grading and comparison:
+- Plots: `Results/plots/`
+  - Confusion matrices for speech-only, text-only, and multimodal (fusion) models.
+  - Representation visualizations that illustrate embedding spaces and class separability.
 
-- **Tables:** `Results/tables/`
-	- Final accuracies and per-emotion classification reports
-	- Includes both train-time and test-time reports (they match because the split is the same)
-
-- **Plots:** `Results/plots/`
-	- Final confusion matrices for speech, text, and fusion
-	- Representation visualizations (speech/text/fusion)
-	- Historical random-split bar chart clearly labeled as historical
-
-## 3) The One Key Result
-
-```
-Emotion2Vec+ speech-only speaker-holdout accuracy = 99.86%
-```
-
-This value is the headline result under **speaker-holdout evaluation** (train on OAF, test on YAF, then vice versa). It is the most reliable indicator of cross-speaker generalization on TESS.
-
-## 4) Historical Baselines (Context Only)
-
-Random-split baselines are kept only for historical context:
+Headline result and evaluation protocol
+--------------------------------------
+The principal cross-speaker evaluation uses a speaker-holdout protocol (train on OAF, test on YAF, then the reciprocal split). The headline metric reported for this protocol is:
 
 ```
-Results/archive/tables/random_split_baselines.csv
+Emotion2Vec+ (speech-only) — speaker-holdout accuracy: 99.86%
 ```
 
-These should **not** be compared directly to speaker-holdout results.
+Note: speaker-holdout results are the preferred measure of cross-speaker generalization. Random-split baselines are retained for historical comparison but should not be directly compared to speaker-holdout numbers.
 
-## 5) Full Experiment Archive (Optional)
+Historical baselines and archive
+--------------------------------
+- Historical/random-split baselines: `Results/archive/tables/random_split_baselines.csv` (context only).
+- Full experiment archive (sweeps, intermediate checkpoints, discarded runs): see `Results/archive/README.md`, `Results/archive/tables/notes.md`, and `Results/archive/plots/README.md`.
 
-If you want to trace earlier experiments, sweeps, and discarded baselines, see:
+Reproducibility pointers
+------------------------
+- Checkpoints and trained models: see `Results/checkpoints/`.
+- Cached embeddings and precomputed features: see `Results/embedding_cache/`.
+- For reproduction scripts and training details, consult the notebooks and scripts in the top-level `models/` and `src/` folders described in the main project README.
 
-- `Results/archive/README.md`
-- `Results/archive/tables/notes.md`
-- `Results/archive/plots/README.md`
-
-The archive is **supplementary** and not required for the final review.
+If you need a specific table, plot, or experiment trace, indicate the artifact name and I will point you to the exact file and relevant commit/checkpoint.
