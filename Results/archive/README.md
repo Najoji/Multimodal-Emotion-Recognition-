@@ -34,6 +34,6 @@ If you are looking for a specific kind of artifact:
 2. Use the CSVs for quantitative comparisons and the MD notes for narrative context.
 3. Use `plots/README.md` to interpret older confusion matrices.
 
-## Final Review Reminder
+## Note
 
 The reviewer-facing results are in `Results/tables/` and `Results/plots/`. This archive exists only for deeper context and reproducibility.

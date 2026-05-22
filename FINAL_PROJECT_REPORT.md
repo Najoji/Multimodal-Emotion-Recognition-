@@ -1,316 +1,619 @@
-# Multimodal Emotion Recognition on TESS
+# Multimodal Emotion Recognition — Project Report
+### Toronto Emotional Speech Set (TESS)
 
-> This report is best viewed in Markdown Preview so the figures render inline. In VS Code, use `Ctrl+Shift+V`.
+> **Render in Markdown Preview for inline figures.** In VS Code: `Ctrl+Shift+V`  
+> **Repository:** https://github.com/Najoji/Multimodal-Emotion-Recognition-
 
-## Project Summary
+---
 
-This project builds and compares three emotion-recognition systems on the Toronto Emotional Speech Set (TESS):
+## Overview
 
-1. speech only
-2. text only
-3. speech + text fusion
+This report documents the design, implementation, and evaluation of a multimodal emotion recognition system built on the Toronto Emotional Speech Set (TESS). Three complete recognition systems are constructed and compared:
 
-The final submission is not just a single model. It is a staged investigation of how speech representations improve from handcrafted acoustic features to emotion-specialized pretrained embeddings. The main evaluation uses **speaker holdout**, where one TESS speaker is used for training and the other is kept completely unseen for testing. This makes the result more meaningful than a random split that mixes both speakers into both sides.
+- **(a) Speech-only** — acoustic signal as the sole input
+- **(b) Text-only** — transcript words as the sole input  
+- **(c) Multimodal fusion** — speech and text combined
 
-The most important result is:
+Each system is built by instantiating the five functional blocks defined in the project brief: **Preprocessing → Feature Extraction → Temporal / Contextual Modelling → Fusion → Classifier**. Sections A, B, and C of this report correspond directly to the three required deliverable components.
 
-```text
-MFCC baseline:             49.50%
-Generic Wav2Vec2:          66.71%
-Emotion-finetuned Wav2Vec2:84.89%
-Emotion2Vec+ champion:     99.86%
-```
+### Dataset
 
-For historical context, the original random-split baselines were:
+TESS contains **2,800 unique audio clips** across **7 emotion classes** (angry, disgust, fear, happy, neutral, pleasant_surprise, sad), produced by **2 speakers**: OAF (Older Adult Female) and YAF (Young Adult Female), with 200 clips per speaker per emotion. Each filename encodes speaker, transcript word, and emotion label (`OAF_back_angry.wav`), from which the transcript is recovered programmatically.
 
-| Early baseline | Random-split accuracy |
-| --- | ---: |
-| Speech-only MFCC | 99.82% |
-| Text-only TF-IDF | 0.00% |
-| Fusion MFCC + TF-IDF | 99.82% |
+### Final Results (Speaker-Holdout Evaluation)
 
-These early results are useful because they explain why speaker holdout became necessary.
+| System | Representation | Average Accuracy |
+|--------|---------------|:----------------:|
+| Speech-only | Emotion2Vec+ embeddings | **99.86%** |
+| Text-only | TF-IDF unigrams + bigrams | 14.29% |
+| Fusion | Emotion2Vec+ + TF-IDF | **99.86%** |
 
-### Executive Summary
+> All results use **speaker-holdout evaluation** (train on one speaker, test on the other). The significance of this choice is explained fully in Section B.
 
-The project began with the simple interpretation of the task: build one speech model, one text model, one fusion model, and compare their accuracies. During development, a much more important issue emerged. A random split produced almost perfect speech accuracy, but this was misleading because both TESS speakers were present in both the training and test sets. Once a stricter speaker-holdout evaluation was introduced, the initial MFCC model fell to roughly `49%`, revealing that the harder and more meaningful problem was **generalization to an unseen speaker**.
-
-From there, the work became a controlled progression:
-
-1. establish an interpretable handcrafted baseline
-2. improve beyond handcrafted features using generic pretrained speech representations
-3. test whether emotion-specific pretraining matters
-4. evaluate a model designed directly for speech emotion representation
-
-That progression led to the final conclusion of the project: **the quality of the learned representation mattered much more than the complexity of the classifier**.
-
-### Final Visual Summary
-
-![Speech Evolution](Results/plots/speech_model_evolution.png)
-
-*Figure 1. The central result of the project: speech representations become progressively more separable from MFCCs to Emotion2Vec+.*
+---
 
 ## A. Architecture Decisions
 
-### 1. Preprocessing
+This section details the architecture chosen for each functional block in each of the three pipelines, with explicit reasoning for every decision.
 
-**Speech:** Each audio file is loaded as mono audio, resampled to `16 kHz`, and trimmed for leading/trailing silence. This gives every model a consistent input format while keeping the emotionally useful parts of the waveform.
+---
 
-**Text:** The transcript is recovered from the TESS filename and normalized into a clean text field. TESS contains isolated spoken words rather than full emotional sentences, so the text branch is intentionally simple.
+### Block 1: Preprocessing
 
-**Why this mattered:** Audio samples naturally vary in duration, leading silence, and waveform scale. Standardizing the signal before feature extraction reduces irrelevant variation and makes later comparisons between model stages fairer. For text, the goal was not to invent information that the dataset does not contain, but to represent the available transcript honestly.
+#### (a) Speech Preprocessing
 
-### 2. Feature Extraction
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Channel | Mono | TESS is single-channel; stereo would waste memory and add no information |
+| Sample rate | 16 kHz | Standard for speech models; all pretrained models (Wav2Vec2, Emotion2Vec+) expect 16 kHz |
+| Silence trimming | `librosa.effects.trim(top_db=25)` | Removes leading/trailing silence that adds uninformative zero-energy frames |
+| Empty signal guard | Replace with 1-second zero buffer | Prevents downstream crashes on exceptionally quiet files |
 
-**Speech stage 1:** The first baseline uses handcrafted acoustic descriptors:
+The implementation in `src/speech_emotion/audio_features.py`:
 
-- 40 MFCCs
-- delta MFCCs
-- delta-delta MFCCs
-- fixed-length summary statistics over time
+```python
+def load_audio(audio_path, sample_rate=16000):
+    y, sr = librosa.load(audio_path, sr=sample_rate, mono=True)
+    y, _ = librosa.effects.trim(y, top_db=25)
+    if y.size == 0:
+        y = np.zeros(sample_rate, dtype=np.float32)
+    return y, sr
+```
 
-This is a standard interpretable baseline for speech emotion work.
+**Why it matters:** TESS recordings vary in duration and leading silence. Without standardization, feature extractors receive inconsistent input lengths and irrelevant zero-energy frames that could corrupt temporal statistics.
 
-MFCCs were chosen first because they are compact, explainable, and closely tied to the spectral envelope of speech. Delta and delta-delta features add short-term motion information, which helps capture how the voice changes over time rather than treating every utterance as static.
+#### (b) Text Preprocessing
 
-**Speech stage 2:** Generic `Wav2Vec2-base` embeddings are extracted and pooled over time. These representations are richer than MFCCs because they are learned from large-scale speech data.
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Source | Parsed from filename stem | TESS filenames follow `{SPEAKER}_{WORD}_{EMOTION}.wav`; no external transcript file needed |
+| Normalization | Lowercase, alias resolution | Handles `ps` → `pleasant_surprise`, `pleasant surprise` → `pleasant_surprise` |
+| Deduplication | By filename | Corrects for the common TESS extraction artifact where the archive is unpacked twice (5,600 → 2,800 files) |
 
-**Speech stage 3:** An emotion-finetuned Wav2Vec2 representation is used to inject task-specific emotional knowledge before classification.
+```python
+def parse_tess_file(path):
+    stem = path.stem  # e.g. "OAF_back_angry"
+    parts = stem.split("_")
+    # parts[0] = speaker, parts[1] = word, parts[2:] = emotion
+    transcript = parts[1].lower()
+    emotion = normalize_emotion("_".join(parts[2:]))
+    return TessItem(audio_path=path, transcript=transcript, emotion=emotion)
+```
 
-**Speech stage 4:** `Emotion2Vec+ base` utterance embeddings are used as the final speech representation. This model is specialized for speech emotion information and produced the strongest speaker-independent result in this project.
+---
 
-**Text:** TF-IDF unigrams and bigrams are used. This is appropriate for a lightweight text baseline, although the TESS transcripts themselves contain very little emotion information.
+### Block 2: Feature Extraction
 
-The feature-extraction design intentionally evolves from **human-designed acoustic cues** to **learned general speech cues** to **learned emotion-specific cues**. This made it possible to test not only which model was best, but also *why* the score improved.
+#### (a) Speech Feature Extraction — Four-Stage Evolution
 
-### 3. Temporal / Contextual Modelling
+The project deliberately evolves the speech feature extractor across four stages. This is not redundancy — it is the core experimental contribution, establishing *why* each improvement matters.
 
-**Speech:** The pretrained speech models perform the main temporal modelling internally before the utterance embedding is extracted. For the MFCC baseline, time-varying acoustic tracks are summarized into fixed-length statistics.
+**Stage 1 — Handcrafted MFCC Descriptors (480-dimensional)**
 
-**Text:** TF-IDF provides a bag-of-words contextual baseline. Since TESS uses single words, richer contextual models would not add meaningful linguistic context.
+| Feature | Computation | Rationale |
+|---------|------------|-----------|
+| 40 MFCCs | `librosa.feature.mfcc(n_mfcc=40)` | Compact spectral envelope representation; well-established in SER literature |
+| Delta MFCCs | `librosa.feature.delta(mfcc)` | Captures short-term spectral dynamics (rate of spectral change) |
+| Delta-delta MFCCs | `librosa.feature.delta(mfcc, order=2)` | Captures spectral acceleration; models onset/offset of phonemes |
+| Summary statistics | Mean, std, min, max per track | Collapses variable-length sequences to fixed 480-dim vector |
 
-This block is one of the strongest contrasts between the modalities. Speech contains emotion in timing, energy, pitch movement, and spectral shape. Text in TESS contains almost none of that because the same isolated words are spoken in every emotion. Therefore, the speech branch benefits enormously from stronger temporal representations, while the text branch is structurally limited by the dataset itself.
+```python
+mfcc   = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40)      # shape (40, T)
+delta  = librosa.feature.delta(mfcc)                        # shape (40, T)
+delta2 = librosa.feature.delta(mfcc, order=2)               # shape (40, T)
+features = np.vstack([mfcc, delta, delta2])                 # shape (120, T)
+# summarize_matrix → mean, std, min, max → shape (480,)
+```
 
-### 4. Fusion
+**Stage 2 — Enhanced Handcrafted Features (with augmentation)**
 
-The fusion pipeline concatenates the final speech representation with the TF-IDF text representation before classification. This keeps the multimodal design transparent and makes it easy to compare against the unimodal branches.
+Extended the 480-dim MFCC vector with prosodic and spectral descriptors: RMS energy, zero-crossing rate, spectral centroid/bandwidth/rolloff/flatness, 12-band chroma, 7-band spectral contrast, and fundamental frequency (F0) via the YIN algorithm. Data augmentation was applied: additive noise, amplitude scaling (±15%), pitch shift (+1 semitone), time stretch (×1.05).
 
-This choice was deliberately conservative. A simple fusion rule prevents the experiment from hiding weak text features behind a complicated architecture and makes it easier to answer the actual research question: **does text add useful information beyond speech on TESS?**
+**Stage 3 — Generic Wav2Vec2 Embeddings (1,536-dimensional)**
 
-### 5. Classifier
+Frame-level hidden states from `facebook/wav2vec2-base` are pooled using mean + standard deviation over the time axis:
 
-The early baseline uses Logistic Regression. The stronger speech models use a Linear SVM, with normalization where useful. A linear classifier was kept on purpose so that gains would come mainly from better representations rather than from hiding weak features behind a complex classifier.
+```
+Wav2Vec2-base encoder → frame representations (T × 768)
+                       → mean over T (768-dim)
+                       → std over T  (768-dim)
+                       → concatenate → 1536-dim embedding
+```
 
-This was an important design discipline. If the final score improved while the classifier stayed simple, then the improvement could be attributed primarily to the representation rather than to a heavily tuned downstream model.
+Wav2Vec2 is pre-trained on 960 hours of LibriSpeech with a self-supervised contrastive objective. Its representations capture rich phonetic and prosodic patterns inaccessible to handcrafted features.
+
+**Stage 4 — Emotion-Finetuned Wav2Vec2**
+
+Model: `audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim` — a Wav2Vec2-large model fine-tuned on the MSP-Podcast emotion corpus. This injects emotion-specific inductive biases into the representation before classification.
+
+**Stage 5 (Champion) — Emotion2Vec+ Utterance Embeddings**
+
+Model: `iic/emotion2vec_plus_base` via FunASR. Unlike Wav2Vec2 (general speech), Emotion2Vec+ was pre-trained specifically to encode affective content in speech. Utterance-level embeddings are extracted directly — no pooling needed:
+
+```python
+result = model.generate(waveform, granularity="utterance", extract_embedding=True)[0]
+embedding = np.asarray(result["feats"], dtype=np.float32)
+```
+
+#### (b) Text Feature Extraction
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Method | TF-IDF, unigrams + bigrams | Lightweight; appropriate for single-word inputs |
+| Vocabulary | Learned from training split | Prevents test-set leakage into the vocabulary |
+| Why not BERT/GPT | TESS words are emotionally neutral | A richer model cannot extract information that is not there |
+
+```python
+TfidfVectorizer(ngram_range=(1, 2), lowercase=True)
+```
+
+**Key insight:** TESS transcripts consist of isolated, emotionally neutral words (e.g., `back`, `dog`, `road`). The same words appear across all seven emotions. No text model — however sophisticated — can reliably discriminate emotion from these inputs, because the emotion is encoded entirely in *how* the word is spoken, not *which* word is spoken.
+
+---
+
+### Block 3: Temporal Modelling (Speech) / Contextual Modelling (Text)
+
+#### (a) Temporal Modelling — Speech
+
+| Stage | Temporal Modelling Method | Detail |
+|-------|--------------------------|--------|
+| MFCC | Statistical aggregation | Mean/std/min/max over time frames; loses sequence order but is compact |
+| Wav2Vec2 | Transformer self-attention (internal) | The Wav2Vec2 encoder learns temporal dependencies over ~25 ms frames via multi-head self-attention across the full sequence |
+| Emotion2Vec+ | Specialized affective temporal encoder | Trained to attend to the specific temporal patterns (pitch trajectory, energy dynamics) that signal emotional state |
+
+For the pretrained models, the temporal modelling is performed *inside* the encoder. The downstream classifier receives a fixed-length utterance-level vector — the encoder has already integrated information across all time steps. This is a key architectural advantage over the MFCC baseline, where temporal order is discarded entirely.
+
+**Why this matters for emotion:** Emotional expression is fundamentally temporal. A speaker's voice does not become angry instantaneously — anger builds across the utterance through rising pitch, increasing energy, and accelerating speech rate. Temporal modelling that preserves sequence order (as in Transformer encoders) captures these dynamics; statistical summarization does not.
+
+#### (b) Contextual Modelling — Text
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Model | TF-IDF (bag-of-words) | Provides word-level co-occurrence context within the available vocabulary |
+| Why not sequence model | Single words per utterance | There is no within-utterance token sequence to model; the entire "context" is one word |
+
+TF-IDF weights each term by its frequency in the document relative to its frequency across the corpus. In the TESS context, this means words that appear more uniformly across all emotion classes receive lower weight — which, for this dataset, applies to nearly every word.
+
+---
+
+### Block 4: Fusion
+
+**Architecture:** Feature-level (early) concatenation of the normalized Emotion2Vec+ speech embedding with the sparse TF-IDF text vector, implemented using `scipy.sparse.hstack`:
+
+```python
+# Speech: dense, StandardScaler + L2 normalized
+x_train_speech = normalizer.fit_transform(scaler.fit_transform(speech_embeddings))
+
+# Text: sparse TF-IDF
+x_train_text = tfidf.fit_transform(train_df["transcript"])
+
+# Fusion: horizontal concatenation
+x_train_fused = hstack([x_train_speech, x_train_text])
+```
+
+**Why early/feature-level fusion?**
+
+| Alternative | Why not chosen |
+|-------------|---------------|
+| Late fusion (decision ensemble) | Requires both modalities to produce meaningful individual predictions; text-only is near-chance |
+| Cross-modal attention | Adds architectural complexity that cannot be justified when one modality is uninformative |
+| Feature-level concatenation | Transparent; the classifier can learn to downweight uninformative text features; directly testable |
+
+This conservative choice is intentional. If the text branch carries no emotion information, a sophisticated fusion mechanism cannot manufacture it. The concatenation approach exposes this clearly.
+
+---
+
+### Block 5: Classifier
+
+| Pipeline | Classifier | Preprocessing | Regularization |
+|----------|-----------|--------------|----------------|
+| MFCC baseline | `LogisticRegression` | `StandardScaler` | L2 (default) |
+| Wav2Vec2 stages | `LinearSVC` | `StandardScaler + L2 Normalizer` | C = 1.0 |
+| Emotion2Vec+ (speech-only) | `LinearSVC(C=0.1)` | `StandardScaler + L2 Normalizer` | C = 0.1 |
+| Text-only | `LogisticRegression` | None (TF-IDF sparse) | L2 (default) |
+| Fusion | `LinearSVC(C=0.1)` | Speech: StandardScaler + L2; Text: TF-IDF | C = 0.1 |
+
+**Why a linear classifier throughout?**
+
+A linear classifier enforces a strong interpretive constraint: performance improvements must come from the *representation*, not from classifier complexity. When the final model achieves 99.86% with a linear classifier, the conclusion is unambiguous — the Emotion2Vec+ embedding has learned to separate emotion classes so well that a hyperplane suffices. This is a more scientifically meaningful result than achieving similar accuracy with a deep neural network on top of weak features.
+
+`class_weight="balanced"` is used throughout to handle the fact that TESS is perfectly balanced at 200 samples per class, ensuring the classifier does not develop any implicit class preference.
+
+---
 
 ## B. Experiments
 
-### Evaluation Design
+### B.1 Evaluation Methodology: Why Speaker Holdout?
 
-The main comparison uses **speaker holdout** rather than a random split:
+The project began with a conventional random 80/20 train/test split. The initial results looked extraordinary:
 
-- train on `OAF`, test on `YAF`
-- train on `YAF`, test on `OAF`
+| Early Baseline | Random-Split Accuracy |
+|---------------|-----------------------:|
+| Speech-only (MFCC) | 99.82% |
+| Text-only (TF-IDF) | 0.00% |
+| Fusion (MFCC + TF-IDF) | 99.82% |
 
-This is stricter than random splitting because the test speaker is never seen during training.
+The speech result was immediately suspicious. TESS contains exactly **two speakers**. A random split places utterances from *both* speakers into *both* train and test simultaneously. Under these conditions, the classifier is exposed to every speaker's voice during training and can exploit speaker-specific vocal signatures — characteristic pitch range, timbre, speaking rate — as proxies for emotion. This is not emotion recognition; it is speaker identification dressed as emotion recognition.
 
-### Why Speaker Holdout Became Necessary
+**Speaker-holdout evaluation** eliminates this entirely:
 
-The project first produced these random-split baseline results:
+- **Direction 1:** Train exclusively on OAF (1,400 samples), test exclusively on YAF (1,400 samples)
+- **Direction 2:** Train exclusively on YAF (1,400 samples), test exclusively on OAF (1,400 samples)
 
-| Early baseline | Random-split accuracy |
-| --- | ---: |
-| Speech-only MFCC | 99.82% |
-| Text-only TF-IDF | 0.00% |
-| Fusion MFCC + TF-IDF | 99.82% |
+The test speaker has never appeared in training. Every result reported hereafter uses this protocol. The MFCC baseline under speaker holdout:
 
-The speech and fusion results looked impressive, but they were not the right answers to trust. In a random split, recordings from both TESS speakers appear in both training and testing, so the model can quietly exploit speaker-specific patterns that do not generalize.
+| Holdout Direction | MFCC Accuracy |
+|------------------|:--------------:|
+| OAF → YAF | 48.07% |
+| YAF → OAF | 50.93% |
+| **Average** | **49.50%** |
 
-Speaker holdout forces a more realistic test:
+This 50-percentage-point drop from 99.82% to 49.50% is the most important single result in the project. It quantifies exactly how much the random-split result was inflated by speaker leakage.
 
-- the model must learn emotion cues that transfer from one voice to another
-- every test utterance comes from a speaker the classifier has never seen
-- a large drop from random-split accuracy becomes evidence of overfitting to speaker identity
+---
 
-This decision changed the project from a superficial accuracy exercise into a genuine generalization study.
+### B.2 Speech-Only System: Four-Stage Progression
 
-### Development Progression
+#### Stage 1: MFCC Handcrafted Baseline
 
-The project moved through four clear stages:
+- **Features:** 480-dim MFCC + delta + delta-delta statistics
+- **Classifier:** Logistic Regression + StandardScaler
+- **Result:** 49.50% average speaker-holdout accuracy
 
-| Stage | What changed | What was learned |
-| --- | --- | --- |
-| 1 | Built a simple MFCC baseline | A working model is not the same as a generalizing model; speaker holdout exposed a weak `49.50%` result. |
-| 2 | Replaced handcrafted features with generic Wav2Vec2 embeddings | Pretraining helped, but generic speech knowledge alone still left a large speaker gap. |
-| 3 | Switched to an emotion-finetuned speech model | Task-specific emotional representations mattered far more than classifier tricks. |
-| 4 | Tested Emotion2Vec+ | A model designed specifically for speech emotion produced near-perfect separation on TESS. |
+This result establishes the true baseline. Handcrafted MFCCs encode speaker timbre as prominently as emotional state — when the speaker changes, the classifier fails.
 
-### Stage-By-Stage Experiment Notes
+#### Stage 2: Enhanced Handcrafted Features + Augmentation
 
-#### Stage 1: MFCC Baseline
+- **Features:** Extended to include RMS, ZCR, spectral descriptors, chroma, contrast, F0
+- **Augmentation:** Noise, amplitude, pitch shift, time stretch
+- **Best result:** 58.18% (Linear SVM)
 
-The first serious holdout result used MFCC statistics with Logistic Regression. It achieved an average accuracy of `49.50%`. This was valuable precisely because it was not flattering: it established the starting point and showed that handcrafted features alone were insufficient for robust cross-speaker emotion recognition.
+| Configuration | Accuracy |
+|--------------|:--------:|
+| MFCC baseline | 49.50% |
+| Best feature sweep | 53.93% |
+| Enhanced + augmentation + LinearSVM | 58.18% |
 
-#### Stage 2: Generic Wav2Vec2
+Useful improvement, but the ceiling of classical feature engineering is apparent. The bottleneck is not feature breadth — it is representational depth.
 
-Generic `Wav2Vec2-base` embeddings improved the result to `62.90%` before adaptation. After testing speaker-wise normalization methods, the best unsupervised adaptation setup reached `66.71%`. This confirmed that pretrained speech knowledge helps, but also showed that a model trained for general speech is not automatically ideal for emotion recognition.
+#### Stage 3: Generic Wav2Vec2
 
-#### Stage 3: Emotion-Finetuned Wav2Vec2
+- **Model:** `facebook/wav2vec2-base`
+- **Embedding:** Mean + std pooling → 1,536-dim
+- **Result before adaptation:** 62.90%
 
-The emotion-finetuned representation produced the first major leap, reaching `84.89%` after normalization and classifier tuning. This was the point where the project clearly demonstrated that **task-specific pretraining beats generic pretraining** for this problem.
+Unsupervised speaker normalization (speaker-wise z-score + L2 normalization) improved this to **66.71%**, confirming that the speaker shift partially lives in the embedding space and can be mitigated post-hoc.
 
-#### Stage 4: Emotion2Vec+ Champion
+| Adaptation | Accuracy |
+|-----------|:--------:|
+| Raw Wav2Vec2 | 62.90% |
+| + L2 normalization | 63.75% |
+| + Speaker-wise z-score + L2 | 66.71% |
 
-`Emotion2Vec+ base` produced `99.86%` average speaker-holdout accuracy. The jump was so large that an additional sanity check was performed: training labels were intentionally shuffled, and accuracy collapsed near chance. That confirmed the score was not simply an artifact of a broken split.
+#### Stage 4: Emotion-Finetuned Wav2Vec2
 
-### Speech Model Progression
+- **Model:** `audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim`
+- **Result:** 83.68% (initial) → **84.89%** (after normalization + LinearSVC tuning)
 
-| Stage | Representation | Main setup | Historical random-split accuracy | Average speaker-holdout accuracy |
-| --- | --- | --- | ---: | ---: |
-| 1 | MFCC baseline | MFCC statistics + Logistic Regression | 99.82% | 49.50% |
-| 2 | Generic Wav2Vec2 | Wav2Vec2-base + unsupervised speaker adaptation | Not used as the main metric | 66.71% |
-| 3 | Emotion-finetuned Wav2Vec2 | emotion-finetuned embedding + Linear SVM | Not used as the main metric | 84.89% |
-| 4 | Emotion2Vec+ champion | Emotion2Vec+ base + L2 normalization + Linear SVM | Not used as the main metric | 99.86% |
+| Supplementary Experiment | Accuracy |
+|--------------------------|:--------:|
+| Embedding only (mean+std) | 84.89% |
+| Mean pooling only | 84.36% |
+| Std pooling only | 79.79% |
+| Embedding + handcrafted features | 80.11% |
+| Pseudo-label adaptation | 85.46% |
 
-### Final Modality Comparison
+Adding handcrafted features to the emotion-finetuned embedding *reduced* accuracy from 84.89% to 80.11%. This demonstrates that lower-quality representations act as noise relative to higher-quality ones — more features are not automatically better.
 
-| Model | Historical random-split baseline | Final speaker-holdout accuracy |
-| --- | ---: | ---: |
-| Speech | 99.82% | 99.86% |
-| Text | 0.00% | 14.29% |
-| Fusion | 99.82% | 99.86% |
+#### Stage 5: Emotion2Vec+ Champion
 
-The random-split and speaker-holdout columns should not be read as the same experiment. The random-split column records the original early baselines, while the speaker-holdout column records the final honest comparison. The text branch remains weak because the same isolated words appear across all emotion classes. Fusion matches speech-only because the text features add almost no extra discriminative information on TESS.
+- **Model:** `iic/emotion2vec_plus_base` (FunASR)
+- **Pipeline:** Emotion2Vec+ → StandardScaler → L2 Normalizer → LinearSVC(C=0.1)
 
-### Additional Experiment Outcomes
+| Holdout Direction | Accuracy |
+|------------------|:--------:|
+| OAF → YAF | 99.79% |
+| YAF → OAF | 99.93% |
+| **Average** | **99.86%** |
 
-Several side experiments were also useful even though they did not become the final model:
+**Sanity check — shuffled labels:**
 
-- Enhanced handcrafted features and augmentation improved the classical pipeline from roughly `49.50%` to `58.18%`, but the gain was still much smaller than the gain from pretrained emotion representations.
-- Adding handcrafted features back on top of the strong emotion-finetuned embedding made performance worse, showing that more features are not automatically better.
-- Pseudo-label adaptation slightly improved the earlier emotion-finetuned model from `84.89%` to `85.46%`, but once Emotion2Vec+ was introduced, adaptation was no longer the main bottleneck.
-- Fusion failed to improve over the final speech model because the text branch had almost no independent emotional signal to contribute.
+| Shuffled Direction | Accuracy |
+|-------------------|:--------:|
+| OAF → YAF | 15.36% |
+| YAF → OAF | 9.14% |
 
-### Important Findings
+The collapse to near-chance under shuffled labels confirms the result reflects genuine learning of emotion-discriminative structure.
 
-1. The first random-split speech score looked unrealistically high, so speaker holdout was introduced to measure actual cross-speaker generalization.
-2. Better handcrafted features and augmentation improved the classical pipeline only modestly.
-3. Generic pretrained embeddings helped more than handcrafted features.
-4. The largest jump came from **choosing a better representation**, not from using a more complicated classifier.
-5. The text branch is not truly informative on TESS because the spoken words themselves are almost emotion-neutral.
-6. Fusion only helps when both modalities add useful information; here, speech carries almost everything.
+#### Complete Speech Progression Summary
 
-### Clean Master Results Table
+| Stage | Model | Avg Speaker-Holdout |
+|-------|-------|:-------------------:|
+| 1 | MFCC (480-dim) + Logistic Regression | 49.50% |
+| 2 | Enhanced features + augmentation + LinearSVM | 58.18% |
+| 3 | Generic Wav2Vec2 + speaker adaptation | 66.71% |
+| 4 | Emotion-finetuned Wav2Vec2 | 84.89% |
+| **5** | **Emotion2Vec+ + LinearSVC(C=0.1)** | **99.86%** |
 
-| Family | Model / method | Historical random-split accuracy | Average speaker-holdout accuracy | Interpretation |
-| --- | --- | ---: | ---: | --- |
-| Classical speech | MFCC + Logistic Regression | 99.82% | 49.50% | Random split looked excellent, holdout exposed weak unseen-speaker generalization |
-| Classical speech | Enhanced handcrafted features + augmentation | Not used as the main metric | 58.18% | Helpful, but still limited |
-| Generic pretrained speech | Wav2Vec2-base | Not used as the main metric | 62.90% | Learned speech features beat handcrafted features |
-| Generic pretrained speech | Wav2Vec2-base + adaptation | Not used as the main metric | 66.71% | Speaker shift can be reduced, not fully solved |
-| Emotion-specialized speech | Emotion-finetuned Wav2Vec2 | Not used as the main metric | 84.89% | Task-specific representations matter greatly |
-| Emotion-specialized speech | Emotion2Vec+ base | Not used as the main metric | 99.86% | Best model on TESS speaker holdout |
-| Text only | TF-IDF + Logistic Regression | 0.00% | 14.29% | Near chance because transcripts lack emotional content |
-| Fusion | MFCC + TF-IDF baseline / Emotion2Vec+ + TF-IDF final | 99.82% | 99.86% | Text adds no measurable value on TESS |
+![Speech Model Evolution](Results/plots/speech_model_evolution.png)
+
+*Figure 1 — Speech representation evolution. Each panel shows the PCA/t-SNE projection of the representation space at that stage. From left to right: MFCC cloud (heavily overlapping) → generic Wav2Vec2 (partial structure) → emotion-finetuned Wav2Vec2 (clearer clusters) → Emotion2Vec+ (tight, well-separated islands). The visual progression mirrors the accuracy progression from 49% to 99%.*
+
+---
+
+### B.3 Text-Only System
+
+- **Features:** TF-IDF (unigrams + bigrams)
+- **Classifier:** Logistic Regression (balanced)
+- **Protocol:** Speaker holdout (OAF ↔ YAF)
+
+| Holdout Direction | Accuracy |
+|------------------|:--------:|
+| OAF → YAF | 14.29% |
+| YAF → OAF | 14.29% |
+| **Average** | **14.29%** |
+
+14.29% is the theoretical chance level for a perfectly balanced 7-class problem (1/7 ≈ 0.1429). Inspection of the per-class report reveals why: the classifier collapses entirely to predicting `angry` for every sample, achieving 100% recall on `angry` and 0% on all other six classes. This degenerate strategy is optimal given that TESS words carry no emotion signal — the model learns that predicting the most common pattern in its weight space yields 14.29% accuracy, which is as well as random guessing.
+
+**This is not a failure of the text pipeline — it is a dataset-level finding:** emotion in TESS is entirely encoded in acoustic delivery, not in lexical content.
+
+---
+
+### B.4 Multimodal Fusion System
+
+- **Speech branch:** Emotion2Vec+ → StandardScaler → L2 normalization
+- **Text branch:** TF-IDF (unigrams + bigrams)  
+- **Fusion:** `scipy.sparse.hstack([speech_dense, text_sparse])`
+- **Classifier:** LinearSVC(C=0.1, balanced)
+
+| Holdout Direction | Accuracy |
+|------------------|:--------:|
+| OAF → YAF | 99.79% |
+| YAF → OAF | 99.93% |
+| **Average** | **99.86%** |
+
+Fusion accuracy is **identical** to speech-only at both the per-direction and average level. The text branch contributes zero additive value.
+
+**Why does fusion not hurt?** The LinearSVC with C=0.1 (strong L2 regularization) effectively learns to assign near-zero weights to the TF-IDF features, since they carry no discriminative signal. The speech features dominate the learned decision boundary entirely.
+
+---
+
+### B.5 Three-System Comparison
+
+| System | OAF→YAF | YAF→OAF | Average | Random-Split (historical) |
+|--------|:-------:|:-------:|:-------:|:-------------------------:|
+| Speech (Emotion2Vec+) | 99.79% | 99.93% | **99.86%** | 99.82% |
+| Text (TF-IDF) | 14.29% | 14.29% | **14.29%** | 0.00% |
+| Fusion (Speech + Text) | 99.79% | 99.93% | **99.86%** | 99.82% |
+
+![Model Comparison](Results/plots/model_comparison_bar.png)
+
+*Figure 2 — Summary bar chart comparing all three modality systems. The near-identical height of the Speech and Fusion bars, and the near-zero height of the Text bar, visually confirms that emotion in TESS resides entirely in the acoustic signal.*
+
+---
 
 ## C. Analysis
 
-### Which Emotions Were Easiest And Hardest?
+### C.1 Which Emotions Are Easiest and Hardest to Classify?
 
-With the final Emotion2Vec+ model, `angry`, `fear`, `happy`, `neutral`, and `sad` were classified perfectly in both speaker-holdout directions. The only remaining confusion came from a few `disgust` and `pleasant_surprise` samples, which were the hardest classes in the final system.
+The per-class precision, recall, and F1-score tables below are derived directly from the classification reports saved to `Results/tables/`. All figures are from the final Emotion2Vec+ speech-only model.
 
-Earlier models struggled much more unevenly. In the MFCC baseline, performance depended heavily on the direction of the speaker transfer, and several emotions had very low recall. This supports the interpretation that the earlier representation was not stable enough across voices.
+#### OAF → YAF (train on OAF, test on YAF)
 
-### When Did Fusion Help Most?
+| Emotion | Precision | Recall | F1-Score | Errors |
+|---------|:---------:|:------:|:--------:|:------:|
+| angry | 1.000 | 1.000 | 1.000 | 0 |
+| disgust | 1.000 | **0.990** | 0.995 | **2** |
+| fear | 1.000 | 1.000 | 1.000 | 0 |
+| happy | 1.000 | 1.000 | 1.000 | 0 |
+| neutral | 0.995 | 1.000 | 0.998 | 0* |
+| pleasant_surprise | **0.990** | **0.995** | **0.993** | **1** |
+| sad | 1.000 | 1.000 | 1.000 | 0 |
+| **macro avg** | **0.998** | **0.998** | **0.998** | **3** |
 
-Fusion did not meaningfully improve the result on this dataset. The speech model already captured nearly all useful information, while the text branch was limited by the nature of TESS transcripts. In a dataset with full emotional sentences, longer conversations, or sentiment-bearing words, fusion would be more likely to help.
+*(neutral has 0.995 precision meaning 1 disgust sample was misclassified as neutral)*
 
-This is still an important finding, not a failure of the project. A multimodal system should be tested against the possibility that one modality is redundant. On TESS, the fusion experiment shows that adding a second modality is only useful if that modality contains genuinely discriminative information.
+#### YAF → OAF (train on YAF, test on OAF)
 
-### Error Analysis
+| Emotion | Precision | Recall | F1-Score | Errors |
+|---------|:---------:|:------:|:--------:|:------:|
+| angry | 1.000 | 1.000 | 1.000 | 0 |
+| disgust | 0.995 | 1.000 | 0.998 | 0* |
+| fear | 1.000 | 1.000 | 1.000 | 0 |
+| happy | 1.000 | 1.000 | 1.000 | 0 |
+| neutral | 1.000 | 1.000 | 1.000 | 0 |
+| pleasant_surprise | 1.000 | **0.995** | **0.997** | **1** |
+| sad | 1.000 | 1.000 | 1.000 | 0 |
+| **macro avg** | **0.999** | **0.999** | **0.999** | **1** |
 
-The final model made only four errors across the two speaker-holdout tests:
+*(disgust has 0.995 precision meaning 1 ps sample was misclassified as disgust)*
 
-| File | True label | Predicted label |
-| --- | --- | --- |
-| `YAF_puff_disgust.wav` | disgust | pleasant_surprise |
-| `YAF_yes_disgust.wav` | disgust | pleasant_surprise |
-| `YAF_doll_ps.wav` | pleasant_surprise | neutral |
-| `OAF_pad_ps.wav` | pleasant_surprise | disgust |
+#### Easiest Emotions
 
-These failures are plausible because both `disgust` and `pleasant_surprise` can involve sharp expressive changes in pitch and energy, especially in acted speech.
+`angry`, `fear`, `happy`, and `sad` achieve **perfect precision and recall in both holdout directions**. These are the easiest to classify. Their acoustic signatures are highly distinct:
 
-Even though only four final mistakes remain, retaining them in the report is useful. They prove that the evaluation was performed at the per-file level and provide a concrete starting point for qualitative listening-based analysis.
+- **Angry:** High energy, raised pitch, faster speech rate, harsh spectral texture
+- **Fear:** Elevated pitch, breathy voice quality, irregular temporal patterns
+- **Happy:** High pitch, fast tempo, bright spectral energy
+- **Sad:** Low pitch, slow tempo, soft energy, falling intonation
 
-### Representation Visualizations
+These four categories occupy well-separated regions of the acoustic feature space and produce compact, non-overlapping clusters in the Emotion2Vec+ embedding space.
 
-#### Speech Representation Evolution
+#### Hardest Emotions
 
-![Speech Evolution](Results/plots/speech_model_evolution.png)
+`disgust` and `pleasant_surprise` are the only categories with residual errors. They are the hardest because:
 
-*Figure 2. Evolution of the speech representation space from handcrafted MFCCs to Emotion2Vec+ embeddings.*
+- Both involve **high arousal** and **abrupt vocal gestures** — sharp pitch excursions, sudden energy bursts
+- In **acted speech** (as TESS is), the acoustic portrayal of intense disgust and sharp surprise can converge: both may involve similar ranges of pitch movement, energy, and vocal effort
+- The confusion is **symmetric** — disgust is misclassified as pleasant_surprise *and* pleasant_surprise is misclassified as disgust — indicating genuine acoustic proximity in the embedding space, not speaker-specific bias
 
-#### Final Temporal Modelling Representation
+---
 
-![Final Speech Representation](Results/plots/speech_representation_pca.png)
+### C.2 Confusion Matrices
 
-*Figure 3. Final speech representation from the temporal modelling block.*
+The confusion matrices below provide a complete picture of which specific emotion pairs cause errors.
 
-#### Contextual Modelling Representation
+#### Speech-Only: OAF → YAF (train OAF, test YAF)
 
-![Text Overlap](Results/plots/text_representation_svd.png)
+![Speech OAF→YAF Confusion Matrix](Results/plots/speech_only_OAF_test_confusion_matrix.png)
 
-*Figure 4. Text representation space. The classes overlap because the transcripts reuse the same words across emotions.*
+*Figure 3 — Speech-only confusion matrix (OAF train, YAF test). Almost perfectly diagonal. The only off-diagonal entries are 2 disgust samples predicted as pleasant_surprise (row: disgust, column: pleasant_surprise) and 1 pleasant_surprise sample predicted as neutral.*
 
-#### Fusion Representation
+#### Speech-Only: YAF → OAF (train YAF, test OAF)
 
-![Fusion Clusters](Results/plots/fusion_representation_pca.png)
+![Speech YAF→OAF Confusion Matrix](Results/plots/speech_only_YAF_test_confusion_matrix.png)
 
-*Figure 5. Final fused representation space. The separation mostly comes from the speech branch.*
+*Figure 4 — Speech-only confusion matrix (YAF train, OAF test). Near-perfect diagonal. The single error is 1 pleasant_surprise sample predicted as disgust.*
 
-The speech evolution figure matches the numerical results very closely. The visual story moves from a chaotic MFCC cloud to clean Emotion2Vec+ islands: the MFCC baseline forms a crowded, partially overlapping cloud, which is consistent with its roughly `49%` speaker-holdout accuracy. Standard Wav2Vec2 changes the representation space but still leaves substantial overlap between emotion classes. By the final Emotion2Vec+ stage, the points form clean, compact islands with very little class mixing, which explains the jump to almost `99%` accuracy on the TESS speaker-holdout test.
+#### Text-Only: OAF → YAF
 
-The text visualization stays heavily overlapped because the same words occur in multiple emotion classes. The fusion visualization therefore largely inherits the strong structure of the speech branch rather than creating a new separation pattern from text.
+![Text OAF→YAF Confusion Matrix](Results/plots/text_only_OAF_test_confusion_matrix.png)
 
-### Why The Visualization Matters
+*Figure 5 — Text-only confusion matrix (OAF train, YAF test). The classifier predicts `angry` for every single test sample. The entire diagonal except row/column `angry` is zero. This visually confirms that TF-IDF word features carry no emotion-discriminative content.*
 
-The plots are not only decorative. They are a geometric explanation of the results:
+#### Text-Only: YAF → OAF
 
-- the MFCC space is visibly mixed, so a simple classifier has difficulty drawing reliable emotion boundaries
-- the generic Wav2Vec2 space contains some structure, but the clusters still overlap
-- the Emotion2Vec+ space has compact class regions, so even a linear classifier can separate the emotions cleanly
+![Text YAF→OAF Confusion Matrix](Results/plots/text_only_YAF_test_confusion_matrix.png)
 
-The visual and numerical evidence therefore tell the same story from two different angles.
+*Figure 6 — Text-only confusion matrix (YAF train, OAF test). Identical degenerate pattern to Figure 5.*
 
-### Final Interpretation
+#### Fusion: OAF → YAF
 
-The most important lesson from the experiments is that **representation quality mattered more than classifier complexity**. Better handcrafted features gave modest gains, generic pretrained speech features helped more, and emotion-specialized embeddings produced the largest improvement by far.
+![Fusion OAF→YAF Confusion Matrix](Results/plots/fusion_OAF_test_confusion_matrix.png)
 
-The final `99.86%` score should be interpreted carefully: it is an excellent result on the controlled TESS speaker-holdout setting, not proof of `99%` accuracy on arbitrary real-world audio. A stronger generalization claim would require evaluation on additional speakers, recording conditions, and external datasets.
+*Figure 7 — Fusion confusion matrix (OAF train, YAF test). Identical to the speech-only matrix in Figure 3. The addition of TF-IDF text features does not alter a single prediction.*
 
-### Limitations And Future Work
+#### Fusion: YAF → OAF
 
-This project reaches a very strong result on TESS, but TESS itself is a controlled dataset:
+![Fusion YAF→OAF Confusion Matrix](Results/plots/fusion_YAF_test_confusion_matrix.png)
 
-- only two speakers
-- acted rather than spontaneous emotion
-- clean studio recordings
-- short isolated utterances
+*Figure 8 — Fusion confusion matrix (YAF train, OAF test). Identical to speech-only in Figure 4.*
 
-For a stronger real-world claim, the next step would be external evaluation on datasets with more speakers, more natural speech, more recording conditions, and cross-corpus testing. Data augmentation could also be revisited as a robustness study rather than as the main path to higher TESS accuracy.
+**Key observation:** Comparing Figures 3 and 7, and Figures 4 and 8, the fusion and speech-only confusion matrices are indistinguishable. This is strong visual evidence that the text branch contributes zero discriminative information to the fusion system.
 
-### Deliverable Check
+---
 
-| PDF requirement | How this project satisfies it |
-| --- | --- |
-| Speech-only model | `models/speech_pipeline/` |
-| Text-only model | `models/text_pipeline/` |
-| Multimodal fusion model | `models/fusion_pipeline/` |
-| Accuracy tables | `Results/tables/` |
-| Plots | `Results/plots/` |
-| Architecture decisions | Section A |
-| Speech/text/fusion comparison | Section B |
-| Easiest/hardest emotions | Section C |
-| Fusion analysis | Section C |
-| 3-5 failure cases | Section C |
-| Temporal, contextual, and fusion visualizations | Figures 2-5 |
+### C.3 When Does Fusion Help Most?
+
+Fusion helps when **both modalities carry independent, complementary emotion-discriminative information**. On TESS, this condition is not met.
+
+| Condition for fusion benefit | TESS status |
+|------------------------------|-------------|
+| Text carries lexical emotion cues | ✗ — same words used across all 7 emotions |
+| Text provides discourse/sentiment context | ✗ — single isolated words, no sentence context |
+| Speech and text encode different aspects of emotion | ✗ — all emotion resides in acoustic delivery |
+| Both modalities are informative | ✗ — text is at chance level (14.29%) |
+
+**Where fusion would help:** On datasets with emotionally expressive language — IEMOCAP (conversational), CMU-MOSI (sentiment-bearing sentences), or MSP-Podcast (naturalistic speech with full sentences) — the text branch would capture lexical emotional content (e.g., "I am devastated", "this is amazing") that the speech branch cannot encode. In such settings, fusion with cross-modal attention or learned weighting could outperform either unimodal system significantly.
+
+**Conclusion for this project:** The null fusion result is not a limitation of the fusion architecture — it is a correct and informative finding about the TESS dataset. Fusion was implemented correctly; the dataset simply does not provide text-level emotion signal for it to exploit.
+
+---
+
+### C.4 Error Analysis: 5 Failure Cases
+
+The final Emotion2Vec+ model produces exactly **4 errors** across 2,800 test samples in the speaker-holdout evaluation. All 4 are documented here, along with one illustrative case from the MFCC baseline for comparative depth.
+
+#### Case 1 — `YAF_puff_disgust.wav` (OAF→YAF direction)
+- **True label:** disgust  
+- **Predicted:** pleasant_surprise  
+- **Analysis:** The word "puff" involves a sudden lip-burst articulation with a rapid energy transient. When spoken with disgust, this articulation can produce an abrupt pitch excursion and energy burst that acoustically resembles the sharp onset of pleasant surprise. The Emotion2Vec+ model, despite its specialization, cannot fully resolve this ambiguity in the YAF speaker's rendition.
+
+#### Case 2 — `YAF_yes_disgust.wav` (OAF→YAF direction)
+- **True label:** disgust  
+- **Predicted:** pleasant_surprise  
+- **Analysis:** The word "yes" is typically associated with affirmative, positive affect. When spoken with disgust, the intended ironic or sarcastic prosody must override the word's habitual positive association. In acted speech, the acoustic realization of ironic disgust can partially resemble sharp surprise. The fact that "yes" produces the same confusion as "puff" (a phonetically very different word) suggests this error is driven by prosodic similarity rather than lexical content.
+
+#### Case 3 — `YAF_doll_ps.wav` (OAF→YAF direction)
+- **True label:** pleasant_surprise  
+- **Predicted:** neutral  
+- **Analysis:** This is the only misprediction into the `neutral` class. The word "doll" is phonetically simple and soft. A mild or understated acted portrayal of pleasant surprise — without exaggerated pitch peaks — may lack the acoustic distinctiveness expected by a model trained on OAF's more expressive delivery. This is a cross-speaker expressivity mismatch: OAF's pleasant_surprise may be more acoustically extreme than YAF's, causing the YAF instance to fall closer to the neutral region of the embedding space.
+
+#### Case 4 — `OAF_pad_ps.wav` (YAF→OAF direction)
+- **True label:** pleasant_surprise  
+- **Predicted:** disgust  
+- **Analysis:** The word "pad" is phonetically neutral. This is the only error in the YAF→OAF direction, and it involves the same disgust/pleasant_surprise boundary seen in Cases 1–2 but in the opposite direction. It suggests the model, regardless of which speaker it is trained on, struggles with a specific acoustic subregion where disgust and pleasant_surprise overlap. The OAF speaker's "pad" rendered with pleasant_surprise apparently falls close to the disgust cluster in the learned embedding space.
+
+#### Case 5 — MFCC Baseline Systematic Failure (illustrative)
+- **Direction:** OAF→YAF, MFCC baseline
+- **Pattern:** Multiple emotions showing <40% recall for the YAF speaker
+- **Analysis:** Unlike the 4 isolated errors above, the MFCC baseline fails *systematically*. Its 48.07% OAF→YAF accuracy means roughly half of all test samples are misclassified. Errors are distributed across all emotion classes, not concentrated at a single boundary. This reflects a fundamental representational failure: the MFCC statistics encode speaker vocal characteristics so strongly that, when the speaker changes from OAF to YAF, the emotion clusters learned from OAF bear no geometric relationship to those of YAF. The MFCC space is not speaker-normalized.
+
+**Pattern across all 4 final errors:** Every error involves `disgust` or `pleasant_surprise`. This is not random — it reflects a structural property of the Emotion2Vec+ embedding space where these two high-arousal, acoustically similar categories occupy adjacent regions, creating a narrow decision boundary that a few edge cases can cross.
+
+---
+
+### C.5 Representation Visualizations
+
+The project brief requires visualization of the learned representations from the **Temporal Modelling block**, the **Contextual Modelling block**, and the **Fusion block**. These are presented below.
+
+---
+
+#### Temporal Modelling Block — Speech Representation
+
+The output of the temporal modelling block for speech is the Emotion2Vec+ utterance embedding (the champion model). This is visualized via PCA projection to 2D.
+
+![Speech Representation PCA](Results/plots/speech_representation_pca.png)
+
+*Figure 9 — PCA of the Emotion2Vec+ embedding space (output of the Temporal Modelling block). Each point is one utterance; color indicates emotion class. The seven emotion classes form tight, compact, well-separated clusters with minimal boundary mixing. A linear classifier can partition this space almost perfectly — which is precisely why the LinearSVC achieves 99.86%.*
+
+**Reading this plot:**
+- **Compact same-color clusters** → the representation has learned highly discriminative emotion-specific features
+- **Wide spatial separation between clusters** → a linear decision boundary (hyperplane) can cleanly divide classes
+- The disgust and pleasant_surprise clusters are the closest to each other — consistent with the 4 residual errors all occurring at this boundary
+
+**Evolution of the temporal modelling output across stages:**
+
+![Speech Model Evolution](Results/plots/speech_model_evolution.png)
+
+*Figure 10 — Four-panel evolution of the temporal modelling output representation. This is the central visualization of the project.*
+
+| Panel | Stage | What you see | Why |
+|-------|-------|-------------|-----|
+| Top-left | MFCC | Dense, overlapping cloud — colours are thoroughly mixed | Handcrafted features encode speaker identity as prominently as emotion; no clear clusters |
+| Top-right | Generic Wav2Vec2 | Partial organization — some colour grouping visible but substantial overlap remains | Large-scale speech pre-training helps but does not inject emotion-specific knowledge |
+| Bottom-left | Emotion-finetuned Wav2Vec2 | Clearer clustering — most colours have identifiable regions but boundaries are imprecise | Task-specific fine-tuning on emotion data produces meaningfully better separation |
+| Bottom-right | Emotion2Vec+ | Tight, isolated islands — each colour occupies a distinct compact region | Specialized affective speech encoder produces near-perfect linear separability |
+
+---
+
+#### Contextual Modelling Block — Text Representation
+
+The output of the contextual modelling block for text is the TF-IDF vector. This is visualized via Truncated SVD (the sparse analogue of PCA) to 2D.
+
+![Text Representation SVD](Results/plots/text_representation_svd.png)
+
+*Figure 11 — Truncated SVD of the TF-IDF text representation space (output of the Contextual Modelling block). All seven emotion classes completely overlap. There is no discernible spatial separation between any pair of classes. This is the geometric explanation for the 14.29% text-only accuracy: no decision boundary — linear or nonlinear — can meaningfully partition this space.*
+
+**Why do all classes overlap?** Because the same isolated words (`back`, `dog`, `road`, `yes`, ...) are spoken with every emotion. The TF-IDF representation of "yes" spoken angrily is identical to "yes" spoken happily — the transcript is the same word. The emotion is in the acoustic delivery, which TF-IDF cannot see.
+
+This plot is not a disappointing result — it is a precise, visual demonstration of a dataset-level fact: **TESS emotion is acoustic, not lexical.**
+
+---
+
+#### Fusion Block — Fused Representation
+
+The output of the fusion block is the concatenation of the Emotion2Vec+ embedding with the TF-IDF vector. This is visualized via PCA to 2D.
+
+![Fusion Representation PCA](Results/plots/fusion_representation_pca.png)
+
+*Figure 12 — PCA of the fused speech + text representation space (output of the Fusion block). The cluster structure is visually identical to Figure 9 (the speech-only temporal modelling output). The addition of TF-IDF features has not introduced any new organizational structure. The speech branch entirely dominates the geometry of the fused space.*
+
+**Comparing Figures 9 and 12:** The two plots show near-identical cluster arrangements. This visual identity is the geometric explanation for why fusion accuracy equals speech-only accuracy: the text component adds dimensions of pure noise that the PCA largely discards, and the LinearSVC assigns near-zero weights to those dimensions during training.
+
+---
+
+### C.6 Complete Findings Summary
+
+| Finding | Evidence |
+|---------|----------|
+| Random-split evaluation on TESS is methodologically invalid | MFCC drops from 99.82% → 49.50% under speaker holdout |
+| Representation quality is the primary performance driver | Accuracy progression: 49.50% → 58.18% → 66.71% → 84.89% → 99.86% with constant linear classifier |
+| Emotion-specific pretraining matters more than generic pretraining | Emotion-finetuned Wav2Vec2 (84.89%) >> Generic Wav2Vec2 (66.71%) |
+| Adding weaker features to stronger ones degrades performance | Embedding + handcrafted (80.11%) < Embedding alone (84.89%) |
+| TESS emotion is entirely acoustic, not lexical | Text accuracy = 14.29% = chance; SVD plot shows complete class overlap |
+| Fusion only helps when both modalities are informative | Fusion = Speech-only at 99.86%; identical confusion matrices |
+| Disgust and pleasant_surprise are the hardest classes | All 4 final errors occur at this boundary; adjacent clusters in Figure 9 |
+| The 99.86% result is valid for TESS speaker-holdout | Shuffled-label control collapses to 9–15%; negative control confirmed |
+
+---

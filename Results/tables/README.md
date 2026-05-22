@@ -1,6 +1,6 @@
 # Final Results Tables (Guide)
 
-This folder contains only the **final pipeline outputs** for the three official models: speech-only, text-only, and fusion. All results are computed using **speaker-holdout** evaluation (train on OAF, test on YAF, and vice versa). When a file name includes `OAF`, it means the model was trained on OAF and evaluated on YAF; `YAF` means the opposite.
+This folder contains only the **final pipeline outputs** for the three official models: speech-only, text-only, and fusion. All results are computed using **speaker-holdout** evaluation (train on OAF, test on YAF, and vice versa). When a file name includes `OAF`, it means the model was trained on OAF and evaluated on YAF; `YAF` means the Vopposite.
 
 For completeness, **both train-time and test-time reports are included**. The train scripts evaluate on the held-out speaker and save a report; the test scripts reload the checkpoint and re-evaluate the same split. Because the split and model are identical, the train and test reports should match. We keep both so a reviewer can see the evaluation reproduced from saved checkpoints.
 
@@ -73,4 +73,4 @@ Confusion matrices for the final pipelines are stored in `Results/plots/`.
 
 ## 6) Older Experiments
 
-All intermediate experiments and discarded baselines are kept in `../archive/tables/` for completeness, but are not required for the final review.
+All intermediate experiments and discarded baselines are kept in `../archive/tables/` for completeness.
