@@ -86,7 +86,7 @@ def parse_tess_file(path):
 
 #### (a) Speech Feature Extraction — Four-Stage Evolution
 
-The project deliberately evolves the speech feature extractor across four stages. This is not redundancy — it is the core experimental contribution, establishing *why* each improvement matters.
+The project deliberately evolves the speech feature extractor across five stages. This is not redundancy — it is the core experimental contribution, establishing *why* each improvement matters.
 
 **Stage 1 — Handcrafted MFCC Descriptors (480-dimensional)**
 
