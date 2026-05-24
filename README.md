@@ -53,48 +53,68 @@ If you are reviewing this project, read in this order:
 
 ---
 
+## How to Navigate the Project
+
+Use this section as a quick map when reviewing or presenting the repository.
+
+| Goal | Where to look | What you will find |
+| --- | --- | --- |
+| Understand the complete project story | `FINAL_PROJECT_REPORT.md` | Architecture decisions, experiments, analysis, error cases, and figures |
+| Run the final official pipelines | `models/speech_pipeline/`, `models/text_pipeline/`, `models/fusion_pipeline/` | Each folder has a `train.py` and `test.py` for the required deliverables |
+| Inspect reusable project code | `src/speech_emotion/` | Dataset parsing, audio feature loading, and evaluation helpers |
+| Check final numeric results | `Results/tables/` | Accuracy summaries and classification reports for all three model variants |
+| Check final visual results | `Results/plots/` | Confusion matrices and representation visualizations |
+| Understand old experiments | `Results/archive/` and `models/*/archive/` | Historical baselines, Wav2Vec2 experiments, MFCC baselines, and discarded trials |
+| Follow the development process | `PROJECT_LOG.md` | Chronological notes on what changed, what worked, and what failed |
+
+For grading, the main path is:
+
+```text
+README.md
+FINAL_PROJECT_REPORT.md
+models/*/train.py and models/*/test.py
+Results/tables/
+Results/plots/
+```
+
+The `archive/` folders are not required for the final pipeline, but they are kept to show the model-development history behind the final result.
+
+---
+
 ## Repository Layout
 
 ```text
 project/
-├── models/
-│   ├── speech_pipeline/
-│   │   ├── train.py              (final Emotion2Vec+ model with speaker-holdout)
-│   │   ├── test.py               (evaluation script)
-│   │   ├── archive/              (all experimental and baseline scripts)
-│   │   └── __pycache__/
-│   ├── text_pipeline/
-│   │   ├── train.py              (final TF-IDF model with speaker-holdout)
-│   │   ├── test.py               (evaluation script)
-│   │   ├── archive/              (old random-split scripts)
-│   │   └── __pycache__/
-│   ├── fusion_pipeline/
-│   │   ├── train.py              (final fusion model with speaker-holdout)
-│   │   ├── test.py               (evaluation script)
-│   │   ├── archive/              (old random-split scripts)
-│   │   └── __pycache__/
-│   └── visualize_representations.py
-├── src/
-│   └── speech_emotion/
-│       ├── dataset.py
-│       ├── audio_features.py
-│       ├── evaluation.py
-│       └── ...
-├── Results/
-│   ├── tables/
-│   │   ├── All 3 model variants accuracy tables
-│   │   └── README.md
-│   ├── plots/
-│   │   ├── Visualization plots
-│   │   └── README.md
-│   ├── checkpoints/
-│   └── archive/
-├── data/
-│   └── [TESS dataset files]
-├── FINAL_PROJECT_REPORT.md
-├── PROJECT_LOG.md
-├── README.md (this file)
-└── requirements.txt
++-- models/
+|   +-- speech_pipeline/
+|   |   +-- train.py              (final Emotion2Vec+ model with speaker-holdout)
+|   |   +-- test.py               (evaluation script)
+|   |   +-- archive/              (all experimental and baseline scripts)
+|   +-- text_pipeline/
+|   |   +-- train.py              (final TF-IDF model with speaker-holdout)
+|   |   +-- test.py               (evaluation script)
+|   |   +-- archive/              (old random-split scripts)
+|   +-- fusion_pipeline/
+|   |   +-- train.py              (final fusion model with speaker-holdout)
+|   |   +-- test.py               (evaluation script)
+|   |   +-- archive/              (old random-split scripts)
+|   +-- visualize_representations.py
++-- src/
+|   +-- speech_emotion/
+|       +-- dataset.py
+|       +-- audio_features.py
+|       +-- evaluation.py
++-- Results/
+|   +-- tables/                   (accuracy tables and classification reports)
+|   +-- plots/                    (confusion matrices and representation plots)
+|   +-- checkpoints/              (generated locally after training)
+|   +-- archive/                  (older exploratory outputs)
++-- data/
+|   +-- [TESS dataset files]
++-- FINAL_PROJECT_REPORT.md
++-- PROJECT_LOG.md
++-- README.md
++-- requirements.txt
 ```
 
 ---
@@ -129,7 +149,7 @@ TESS contains **7 emotions**: angry, disgust, fear, happy, neutral, pleasant sur
 
 TESS contains **2 speakers**: OAF (Older Adult Female, 400 samples) and YAF (Young Adult Female, 400 samples)
 
-**Total: 2,800 unique samples** (7 emotions × 2 speakers × 200 samples per emotion-speaker pair)
+**Total: 2,800 unique samples** (7 emotions x 2 speakers x 200 samples per emotion-speaker pair)
 
 ### Dataset Note
 
@@ -143,18 +163,65 @@ The dataset loader removes duplicate filenames if the archive was accidentally e
 
 - Python 3.10 or 3.11
 - pip
+- Internet access for the first run, because `pip`, `transformers`, `funasr`, and `modelscope` may download packages/model weights
+
+Check your Python version from the project root:
+
+```powershell
+python --version
+```
+
+If `python` is not available on Windows, try:
+
+```powershell
+py --version
+```
 
 ### Create Virtual Environment
+
+Windows PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Install Dependencies
+If Windows blocks activation scripts, run this once in the same PowerShell window and activate again:
 
 ```powershell
-pip install -r requirements.txt
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+macOS / Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Install Dependencies
+
+Use `python -m pip` so the packages are installed into the active virtual environment:
+
+Windows PowerShell:
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+macOS / Linux:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Quick dependency check:
+
+```powershell
+python -m pip check
 ```
 
 Core dependencies include:
@@ -163,6 +230,23 @@ Core dependencies include:
 - `transformers` - pretrained speech models (Wav2Vec2, Emotion2Vec+)
 - `pandas` / `numpy` - data handling
 - `matplotlib` / `seaborn` - visualization
+
+### Verify Dataset Detection
+
+After placing the TESS `.wav` files under `data/`, run:
+
+```powershell
+python -c "from src.speech_emotion.dataset import load_tess_dataframe; df = load_tess_dataframe('data'); print(len(df)); print(df[['emotion','transcript']].head())"
+```
+
+Expected count: `2800` unique clips. If the count is larger, the loader will deduplicate repeated filenames during training.
+
+### Notes for Other Computers
+
+- Run commands from the repository root, the folder that contains `README.md`.
+- Keep the dataset under `data/`; nested folders are fine because the loader searches recursively.
+- The first speech/fusion run can take longer because pretrained model weights are downloaded and cached.
+- If you see an `ffmpeg is not installed` message, the scripts still work through the torchaudio fallback used in this project.
 
 ---
 
@@ -200,7 +284,7 @@ python models\speech_pipeline\train.py
 - Uses Emotion2Vec+ (state-of-the-art emotion model)
 - **Expected:** 99.86% average speaker-holdout accuracy
 - Saves checkpoints and classification reports to `Results/`
-- **Note:** You may see a "ffmpeg is not installed" notice at startup. This is harmless—the script works fine using torchaudio as a fallback.
+- **Note:** You may see a "ffmpeg is not installed" notice at startup. This is harmless; the script works fine using torchaudio as a fallback.
 
 **Text-only (TF-IDF):**
 ```powershell
@@ -217,7 +301,7 @@ python models\fusion_pipeline\train.py
 - Combines Emotion2Vec+ embeddings + TF-IDF features  
 - Shows that weak modalities don't help strong ones
 - **Expected:** 99.86% average speaker-holdout accuracy (identical to speech-only)
-- **Note:** You may see a "ffmpeg is not installed" notice at startup. This is harmless—the script works fine using torchaudio as a fallback.
+- **Note:** You may see a "ffmpeg is not installed" notice at startup. This is harmless; the script works fine using torchaudio as a fallback.
 
 ### Evaluate All Models
 
@@ -248,31 +332,31 @@ The final speech model evolved through four stages. If you want to explore how t
 ```powershell
 python models\speech_pipeline\archive\mfcc_holdout_reports.py
 ```
-49.50% speaker-holdout accuracy — shows why handcrafted features don't generalize.
+49.50% speaker-holdout accuracy - shows why handcrafted features don't generalize.
 
 **Stage 2A: Generic Wav2Vec2**
 ```powershell
 python models\speech_pipeline\archive\pretrained_embedding_holdout.py
 ```
-62.89% speaker-holdout accuracy — generic speech embeddings improve over MFCCs.
+62.89% speaker-holdout accuracy - generic speech embeddings improve over MFCCs.
 
 **Stage 2B: Wav2Vec2 with Adaptation**
 ```powershell
 python models\speech_pipeline\archive\wav2vec2_domain_adaptation.py
 ```
-66.71% speaker-holdout accuracy — speaker normalization reduces cross-speaker shift.
+66.71% speaker-holdout accuracy - speaker normalization reduces cross-speaker shift.
 
 **Stage 3: Emotion-Finetuned Wav2Vec2**
 ```powershell
 python models\speech_pipeline\archive\emotion_ft_best_holdout.py
 ```
-84.89% speaker-holdout accuracy — emotion specialization helps much more than generic features.
+84.89% speaker-holdout accuracy - emotion specialization helps much more than generic features.
 
 **Stage 4: Emotion2Vec+ Champion** (also in archive)
 ```powershell
 python models\speech_pipeline\archive\emotion2vec_holdout.py
 ```
-99.86% speaker-holdout accuracy — state-of-the-art emotion speech model.
+99.86% speaker-holdout accuracy - state-of-the-art emotion speech model.
 
 These scripts are provided for **educational exploration** only. For the official deliverable, use the `train.py` and `test.py` scripts in the main folder.
 
@@ -309,7 +393,7 @@ Older exploratory outputs are preserved in:
 
 2. **Representation quality >> Classifier complexity**: Stronger embeddings (Emotion2Vec+) gave 2x improvement over weak embeddings + complex classifiers.
 
-3. **Speaker-holdout is essential**: Random-split gave misleading 99.82% early on, but speaker-holdout revealed true cross-speaker generalization (49.50% initially → 99.86% finally).
+3. **Speaker-holdout is essential**: Random-split gave misleading 99.82% early on, but speaker-holdout revealed true cross-speaker generalization (49.50% initially -> 99.86% finally).
 
 4. **Fusion with weak modalities doesn't help**: Text adds zero value to the fusion (99.86% identical to speech-only), confirming that weak features act as noise, not signal.
 

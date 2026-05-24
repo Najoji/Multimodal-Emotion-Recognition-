@@ -38,7 +38,6 @@ Results/
   checkpoints/
   embedding_cache/
 README.md
-SETUP_INSTRUCTIONS.md
 FINAL_PROJECT_REPORT.md
 requirements.txt
 ```
@@ -89,7 +88,7 @@ Core packages used during the project include:
 - funasr
 - modelscope
 
-The complete setup commands are now documented in `SETUP_INSTRUCTIONS.md`.
+The complete setup commands are documented in `README.md`.
 
 ## 5. First Speech Baseline
 
@@ -582,4 +581,3 @@ Results/plots/speech_representation_pca.png
 Results/plots/text_representation_svd.png
 Results/plots/fusion_representation_pca.png
 ```
-
