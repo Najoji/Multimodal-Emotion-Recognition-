@@ -67,15 +67,8 @@ Use this section as a quick map when reviewing or presenting the repository.
 | Understand old experiments | `Results/archive/` and `models/*/archive/` | Historical baselines, Wav2Vec2 experiments, MFCC baselines, and discarded trials |
 | Follow the development process | `PROJECT_LOG.md` | Chronological notes on what changed, what worked, and what failed |
 
-For grading, the main path is:
 
-```text
-README.md
-FINAL_PROJECT_REPORT.md
-models/*/train.py and models/*/test.py
-Results/tables/
-Results/plots/
-```
+
 
 The `archive/` folders are not required for the final pipeline, but they are kept to show the model-development history behind the final result.
 
@@ -405,6 +398,126 @@ Older exploratory outputs are preserved in:
 - TESS text consists of isolated words, so intentionally weak text-only performance validates the acoustic nature of emotion.
 - The 99.86% result is excellent on controlled TESS speaker-holdout, but should not be treated as guaranteed real-world performance on unrelated datasets.
 - All code, data, and results are self-contained for reproducibility.
+
+---
+
+## 9. Google Drive ZIP Evaluation Guide
+
+This section is for evaluators who download the submitted Google Drive ZIP file:
+
+```text
+IIITH speech analysis.zip
+```
+
+### Step 1: Download and Extract
+
+Download `IIITH speech analysis.zip` from Google Drive, then extract it. The ZIP contains one top-level folder named `IIITH speech analysis`.
+
+Windows PowerShell:
+
+```powershell
+Expand-Archive -Path "IIITH speech analysis.zip" -DestinationPath "."
+cd "IIITH speech analysis"
+```
+
+macOS / Linux:
+
+```bash
+unzip "IIITH speech analysis.zip"
+cd "IIITH speech analysis"
+```
+
+If using the file explorer instead of the terminal, right-click the ZIP, choose extract/unzip, then open the extracted `IIITH speech analysis` folder.
+
+Confirm that the extracted folder contains the expected project files:
+
+```powershell
+Get-ChildItem README.md
+Get-ChildItem models
+Get-ChildItem Results
+```
+
+On macOS / Linux:
+
+```bash
+ls README.md
+ls models
+ls Results
+```
+
+### Step 2: Create the Environment
+
+Create a fresh virtual environment inside the extracted project folder. Do not rely on a copied `.venv` from another computer.
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip check
+```
+
+macOS / Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip check
+```
+
+### Step 3: Check the Dataset
+
+If the ZIP includes `data/`, no additional dataset step is needed. If it does not include `data/`, download TESS from Kaggle and place the extracted `.wav` files under:
+
+```text
+data/
+```
+
+Verify dataset loading:
+
+```powershell
+python -c "from src.speech_emotion.dataset import load_tess_dataframe; df = load_tess_dataframe('data'); print(len(df)); print(df[['emotion','transcript']].head())"
+```
+
+Expected count: `2800` unique clips.
+
+### Step 4: Test Existing Checkpoints
+
+If `Results/checkpoints/` contains `.joblib` checkpoint files, run:
+
+```powershell
+python models\speech_pipeline\test.py
+python models\text_pipeline\test.py
+python models\fusion_pipeline\test.py
+```
+
+These scripts reload saved checkpoints and write refreshed reports/plots under `Results/`.
+
+### Step 5: Retrain If Needed
+
+If checkpoints are missing, or if full reproduction from training is required, run:
+
+```powershell
+python models\speech_pipeline\train.py
+python models\text_pipeline\train.py
+python models\fusion_pipeline\train.py
+```
+
+Then run the test commands from Step 4.
+
+### Step 6: Optional Plot Regeneration
+
+To regenerate representation plots after checkpoints/embedding caches are available:
+
+```powershell
+python models\visualize_representations.py
+```
+
+Final tables are in `Results/tables/`, and final figures are in `Results/plots/`.
 
 ---
 
